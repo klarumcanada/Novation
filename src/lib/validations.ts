@@ -17,7 +17,7 @@ export const registrationSchema = z.object({
     .regex(/^\d{10}$/, 'Please enter a 10-digit Canadian phone number'),
   province: z.string().min(1, 'Please select your province'),
   years_in_practice: z.coerce
-    .number({ invalid_type_error: 'Please enter a number' })
+    .number()
     .min(0)
     .max(60),
 })
