@@ -624,3 +624,131 @@ footer {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ── LOGIN ── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-50);
+  padding: 24px;
+}
+
+.login-card {
+  background: var(--white);
+  border: 1px solid rgba(11, 31, 58, 0.08);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-logo {
+  display: block;
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  margin-bottom: 36px;
+}
+
+.login-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid rgba(11, 31, 58, 0.1);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 32px;
+}
+
+.login-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--gray-500);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.login-tab.active {
+  background: var(--navy);
+  color: var(--white);
+  font-weight: 500;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-hint {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--gray-500);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy);
+}
+
+.login-input {
+  padding: 12px 16px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: var(--sans);
+  color: var(--navy);
+  outline: none;
+  transition: border-color 0.2s;
+  background: var(--white);
+}
+
+.login-input:focus {
+  border-color: var(--electric);
+}
+
+.login-input::placeholder {
+  color: var(--gray-300);
+}
+
+.login-input--mono {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.08em;
+}
+
+.login-btn {
+  margin-top: 4px;
+  padding: 14px;
+  background: var(--navy);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.login-btn:hover {
+  background: var(--electric);
+}
