@@ -23,7 +23,17 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <a href="/" className="login-logo">Klarum</a>
+        <a href="/" className="login-logo">
+          <svg width="38" height="26" viewBox="0 0 44 30" fill="none">
+            <rect x="1" y="1" width="3.5" height="28" fill="#0D1B3E"/>
+            <path d="M4.5 15 L18 1" stroke="#0D1B3E" stroke-width="3" stroke-linecap="square"/>
+            <path d="M4.5 15 L18 29" stroke="#0D1B3E" stroke-width="3" stroke-linecap="square"/>
+            <line x1="18" y1="4" x2="34" y2="15" stroke="#0D1B3E" stroke-width="0.75" opacity="0.35"/>
+            <line x1="18" y1="26" x2="34" y2="15" stroke="#0D1B3E" stroke-width="0.75" opacity="0.35"/>
+            <circle cx="34" cy="15" r="7" fill="#3B82F6"/>
+          </svg>
+          <span className="login-logo-text">klarum</span>
+        </a>
 
         <div className="login-tabs">
           <button

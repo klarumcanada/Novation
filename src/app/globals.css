@@ -5,13 +5,14 @@
 }
 
 :root {
-  --navy: #0B1F3A;
-  --navy-mid: #102B50;
-  --electric: #2563EB;
-  --electric-light: #3B82F6;
+  --navy: #1A3266;
+  --midnight: #0D1B3E;
+  --electric: #3B82F6;
+  --electric-light: #DBEAFE;
+  --voltage: #E8C547;
   --sky: #EFF6FF;
   --white: #FFFFFF;
-  --gray-50: #F8FAFC;
+  --chalk: #F8F7F4;
   --gray-100: #F1F5F9;
   --gray-300: #CBD5E1;
   --gray-500: #64748B;
@@ -54,11 +55,18 @@ body {
 }
 
 .nav-logo {
-  font-family: var(--serif);
-  font-size: 20px;
-  color: var(--navy);
-  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-decoration: none;
+}
+
+.nav-logo-text {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--midnight);
+  letter-spacing: -0.02em;
 }
 
 .nav-links {
@@ -586,8 +594,9 @@ footer {
 
 .footer-logo {
   font-family: var(--serif);
+  font-weight: 600;
   font-size: 17px;
-  color: var(--navy);
+  color: var(--midnight);
   letter-spacing: -0.02em;
 }
 
@@ -645,13 +654,19 @@ footer {
 }
 
 .login-logo {
-  display: block;
-  font-family: var(--serif);
-  font-size: 22px;
-  color: var(--navy);
-  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-decoration: none;
   margin-bottom: 36px;
+}
+
+.login-logo-text {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--midnight);
+  letter-spacing: -0.02em;
 }
 
 .login-tabs {
