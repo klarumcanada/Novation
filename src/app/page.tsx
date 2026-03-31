@@ -129,7 +129,7 @@ export default function Home() {
         <div className="novation-section">
           <div ref={addRef} className="novation-header fade-in">
             <div>
-              <div className="product-badge">Flagship product — coming soon</div>
+              <div className="product-badge">Coming soon</div>
               <div className="section-label">Novation</div>
               <h2 className="section-title">
                 Book-of-business succession,<br />done right.
