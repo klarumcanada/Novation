@@ -1,4 +1,6 @@
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { registrationSchema } from '@/lib/validations'
 
@@ -12,33 +14,53 @@ export async function POST(request: NextRequest) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Invalid form data' },
+      { error: 'Invalid form data', issues: parsed.error.flatten().fieldErrors },
       { status: 400 }
     )
   }
 
+  const { full_name, email, password, phone, province, years_in_practice } = parsed.data
+  const invite_code = body.invite_code
 
-const supabase = createAdminClient()
-const { full_name, email, password, phone, province, years_in_practice } = parsed.data
-const invite_code = body.invite_code
+  const cookieStore = await cookies()
 
-// Create auth user
-const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-  email,
-  password,
-  email_confirm: false,
-  user_metadata: { full_name },
-})
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  })
 
   if (authError || !authData.user) {
     return NextResponse.json(
-      { error: authError?.message || 'Could not create account' },
+      { error: authError?.message ?? 'Could not create account' },
       { status: 400 }
     )
   }
 
-  // Insert advisor row using admin client to bypass RLS
-  const { error: advisorError } = await supabase
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { error: advisorError } = await admin
     .from('advisors')
     .insert({
       id: authData.user.id,
@@ -57,8 +79,7 @@ const { data: authData, error: authError } = await supabase.auth.admin.createUse
     )
   }
 
-  // Mark invite code as used
-  await supabase
+  await admin
     .from('invite_codes')
     .update({
       is_active: false,
