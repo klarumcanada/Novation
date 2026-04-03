@@ -169,9 +169,8 @@ export default function ProfileEditPage() {
       setSubmitting(false)
       return
     }
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-    setSubmitting(false)
+setSubmitting(false)
+router.push('/profile')
   }
 
   if (loading) return (
