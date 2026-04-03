@@ -25,14 +25,6 @@ type AdvisorProfile = {
   avatar_url: string | null
 }
 
-const EditIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1"
-    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="nov-edit-icon">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-)
-
 const CheckIcon = () => (
   <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#3B82F6" strokeWidth="2.5">
     <polyline points="1.5,5 4,7.5 8.5,2.5" />
@@ -94,13 +86,8 @@ export default function ProfilePage() {
       <NovationNav />
 
       <div className="nov-page-body">
-        <div className="nov-page-action-row">
-          <Link href="/profile/public" className="nov-btn-primary">
-            Preview My Public Listing →
-          </Link>
-        </div>
-
         <div className="nov-profile-card">
+
           {/* Header */}
           <div className="nov-profile-header">
             <div className="nov-profile-top">
@@ -110,20 +97,33 @@ export default function ProfilePage() {
                   : getInitials(profile.full_name)
                 }
               </div>
-              <div className="nov-profile-meta">
+              <div className="nov-profile-meta" style={{ flex: 1 }}>
                 <div className="nov-profile-name">{profile.full_name}</div>
                 <div className="nov-profile-sub-row">
                   <span className="nov-profile-sub">
                     {profile.province}&nbsp;&nbsp;·&nbsp;&nbsp;{profile.years_in_practice} years in practice
                   </span>
-                  <Link href="/profile/edit" title="Edit details">
-                    <EditIcon />
-                  </Link>
                 </div>
                 <span className="nov-product-badge">
                   {isSeller ? 'Seller' : 'Buyer'}
                 </span>
               </div>
+              <Link
+                href="/profile/edit"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '8px 14px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif',
+                  fontWeight: 500, color: '#0D1B3E', textDecoration: 'none',
+                  border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white',
+                  whiteSpace: 'nowrap', alignSelf: 'flex-start',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </Link>
             </div>
 
             {/* Stat boxes */}
@@ -174,7 +174,6 @@ export default function ProfilePage() {
           <div className="nov-profile-body">
             <div className="nov-section-header">
               <span className="nov-section-label">About</span>
-              <Link href="/profile/edit" title="Edit bio"><EditIcon /></Link>
             </div>
             <div className="nov-bio-text">
               {profile.bio ?? (
