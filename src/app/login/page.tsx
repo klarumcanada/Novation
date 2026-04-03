@@ -11,6 +11,22 @@ const BRAND = {
   chalk: '#F8F7F4',
 }
 
+const PROVINCES = [
+  { value: 'AB', label: 'Alberta' },
+  { value: 'BC', label: 'British Columbia' },
+  { value: 'MB', label: 'Manitoba' },
+  { value: 'NB', label: 'New Brunswick' },
+  { value: 'NL', label: 'Newfoundland' },
+  { value: 'NS', label: 'Nova Scotia' },
+  { value: 'NT', label: 'Northwest Territories' },
+  { value: 'NU', label: 'Nunavut' },
+  { value: 'ON', label: 'Ontario' },
+  { value: 'PE', label: 'PEI' },
+  { value: 'QC', label: 'Quebec' },
+  { value: 'SK', label: 'Saskatchewan' },
+  { value: 'YT', label: 'Yukon' },
+]
+
 function KlarumLogo() {
   return (
     <a href="/" style={{ textDecoration: 'none', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
@@ -48,6 +64,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function ErrorMsg({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
+      {children}
+    </div>
+  )
+}
+
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '11px 12px',
@@ -75,6 +99,8 @@ const submitBtn = (disabled: boolean): React.CSSProperties => ({
   transition: 'background .15s',
   marginTop: '0.25rem',
 })
+
+// ── Sign In Tab ───────────────────────────────────────────────────
 
 function SignInTab() {
   const router = useRouter()
@@ -118,7 +144,6 @@ function SignInTab() {
           autoFocus
         />
       </Field>
-
       <Field label="Password">
         <input
           type="password"
@@ -129,13 +154,7 @@ function SignInTab() {
           style={inputStyle}
         />
       </Field>
-
-      {error && (
-        <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
-          {error}
-        </div>
-      )}
-
+      {error && <ErrorMsg>{error}</ErrorMsg>}
       <button onClick={handleSubmit} disabled={loading} style={submitBtn(loading)}>
         {loading ? 'Signing in…' : 'Sign in →'}
       </button>
@@ -143,16 +162,36 @@ function SignInTab() {
   )
 }
 
-function JoinTab() {
-  const router = useRouter()
-  const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+// ── Join Tab ──────────────────────────────────────────────────────
 
-  async function handleSubmit() {
-    if (!code.trim()) return setError('Please enter your invite code.')
-    setError(null)
-    setLoading(true)
+type JoinStep = 'token' | 'register' | 'done'
+
+function JoinTab() {
+  const [step, setStep] = useState<JoinStep>('token')
+  const [code, setCode] = useState('')
+  const [validatedCode, setValidatedCode] = useState('')
+  const [tokenError, setTokenError] = useState<string | null>(null)
+  const [tokenLoading, setTokenLoading] = useState(false)
+
+  const [form, setForm] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    phone: '',
+    province: '',
+    years_in_practice: '',
+  })
+  const [regError, setRegError] = useState<string | null>(null)
+  const [regLoading, setRegLoading] = useState(false)
+
+  function setField(key: keyof typeof form, value: string) {
+    setForm(f => ({ ...f, [key]: value }))
+  }
+
+  async function handleTokenSubmit() {
+    if (!code.trim()) return setTokenError('Please enter your invite code.')
+    setTokenError(null)
+    setTokenLoading(true)
 
     const res = await fetch('/api/validate-invite', {
       method: 'POST',
@@ -161,51 +200,155 @@ function JoinTab() {
     })
 
     const data = await res.json()
-    setLoading(false)
+    setTokenLoading(false)
 
-    if (!res.ok) {
-      setError(data.error ?? 'Invalid or inactive invite code.')
+    if (!data.valid) {
+      setTokenError(data.error ?? 'Invalid invite code.')
       return
     }
 
-    router.push(`/register?token=${encodeURIComponent(code.trim())}`)
+    setValidatedCode(code.trim().toUpperCase())
+    setStep('register')
   }
 
-  return (
-    <>
-      <p style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-        Novation is invite-only. Enter your invite code to create your advisor profile.
-      </p>
+  async function handleRegisterSubmit() {
+    const { full_name, email, password, phone, province, years_in_practice } = form
+    if (!full_name || !email || !password || !phone || !province || !years_in_practice) {
+      return setRegError('Please fill in all fields.')
+    }
+    if (!/^\d{10}$/.test(phone.replace(/\D/g, ''))) {
+      return setRegError('Enter a 10-digit phone number.')
+    }
+    if (password.length < 8) {
+      return setRegError('Password must be at least 8 characters.')
+    }
 
-      <Field label="Invite code">
-        <input
-          type="text"
-          value={code}
-          onChange={e => setCode(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          placeholder="e.g. NOVATION-2024"
-          style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.05em' }}
-          autoFocus
-        />
-      </Field>
+    setRegError(null)
+    setRegLoading(true)
 
-      {error && (
-        <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
-          {error}
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        phone: form.phone.replace(/\D/g, ''),
+        years_in_practice: Number(years_in_practice),
+        invite_code: validatedCode,
+      }),
+    })
+
+    const data = await res.json()
+    setRegLoading(false)
+
+    if (!res.ok) {
+      setRegError(data.error ?? 'Something went wrong.')
+      return
+    }
+
+    setStep('done')
+  }
+
+  if (step === 'token') {
+    return (
+      <>
+        <Field label="Invite code">
+          <input
+            type="text"
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleTokenSubmit()}
+            placeholder="e.g. KLARUM-BETA-001"
+            style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '.05em' }}
+            autoFocus
+          />
+        </Field>
+        {tokenError && <ErrorMsg>{tokenError}</ErrorMsg>}
+        <button onClick={handleTokenSubmit} disabled={tokenLoading} style={submitBtn(tokenLoading)}>
+          {tokenLoading ? 'Checking…' : 'Continue →'}
+        </button>
+      </>
+    )
+  }
+
+  if (step === 'register') {
+    return (
+      <>
+        <button
+          onClick={() => setStep('token')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', padding: 0, marginBottom: '1.25rem' }}
+        >
+          ← Back
+        </button>
+
+        <p style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+          Code accepted. Fill in your details to get started.
+        </p>
+
+        <Field label="Full name">
+          <input type="text" value={form.full_name} onChange={e => setField('full_name', e.target.value)} placeholder="Jane Smith" style={inputStyle} />
+        </Field>
+        <Field label="Email">
+          <input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="jane@example.com" style={inputStyle} />
+        </Field>
+        <Field label="Password">
+          <input type="password" value={form.password} onChange={e => setField('password', e.target.value)} placeholder="8+ characters" style={inputStyle} />
+        </Field>
+        <Field label="Phone number">
+          <input type="tel" value={form.phone} onChange={e => setField('phone', e.target.value)} placeholder="6475551234" style={inputStyle} />
+        </Field>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ flex: 1 }}>
+            <Field label="Province">
+              <select value={form.province} onChange={e => setField('province', e.target.value)} style={inputStyle}>
+                <option value="">Select…</option>
+                {PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div style={{ flex: 1 }}>
+            <Field label="Years in practice">
+              <input type="number" value={form.years_in_practice} onChange={e => setField('years_in_practice', e.target.value)} placeholder="e.g. 12" min="0" max="60" style={inputStyle} />
+            </Field>
+          </div>
         </div>
-      )}
 
-      <button onClick={handleSubmit} disabled={loading} style={submitBtn(loading)}>
-        {loading ? 'Checking…' : 'Continue →'}
-      </button>
+        {regError && <ErrorMsg>{regError}</ErrorMsg>}
 
-      <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '13px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}>
-        Don't have an invite code?{' '}
-        <a href="mailto:hello@klarum.ca" style={{ color: BRAND.electric, textDecoration: 'none' }}>Request access</a>
+        <button onClick={handleRegisterSubmit} disabled={regLoading} style={submitBtn(regLoading)}>
+          {regLoading ? 'Creating account…' : 'Create account →'}
+        </button>
+
+        <p style={{ marginTop: '1rem', fontSize: '12px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, textAlign: 'center' }}>
+          By creating an account you agree to our terms of service and privacy policy.
+        </p>
+      </>
+    )
+  }
+
+  // done
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: BRAND.ice, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={BRAND.electric} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M2 7l10 7 10-7"/>
+        </svg>
       </div>
-    </>
+      <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '24px', fontWeight: 400, color: BRAND.navy, marginBottom: '.75rem' }}>
+        Check your inbox
+      </h1>
+      <p style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+        We've sent a verification email to <strong style={{ color: BRAND.midnight }}>{form.email}</strong>. Click the link to activate your account and continue to Novation.
+      </p>
+      <div style={{ background: BRAND.chalk, borderRadius: '8px', padding: '12px 16px', fontSize: '12px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6 }}>
+        Didn't get it? Check your spam folder or contact{' '}
+        <a href="mailto:hello@klarum.ca" style={{ color: BRAND.electric, textDecoration: 'none' }}>hello@klarum.ca</a>
+      </div>
+    </div>
   )
 }
+
+// ── Page ──────────────────────────────────────────────────────────
 
 export default function LoginPage() {
   const [tab, setTab] = useState<'signin' | 'join'>('signin')
@@ -220,7 +363,6 @@ export default function LoginPage() {
       padding: '2rem',
     }}>
       <div style={{ width: '100%', maxWidth: '440px' }}>
-
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <KlarumLogo />
         </div>
