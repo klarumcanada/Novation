@@ -32,15 +32,8 @@ const BUDGET_RANGES = [
   { label: 'Over $5M', min: 5, max: undefined },
 ]
 
-const TIMELINES = ['3mo', '6mo', '12mo', '18mo+']
-const TIMELINE_LABELS: Record<string, string> = {
-  '3mo': '3 months', '6mo': '6 months', '12mo': '12 months', '18mo+': '18+ months',
-}
-
-const ACQ_TIMELINES = ['0-3mo', '3-6mo', '6-12mo', '12mo+']
-const ACQ_TIMELINE_LABELS: Record<string, string> = {
-  '0-3mo': '0–3 months', '3-6mo': '3–6 months', '6-12mo': '6–12 months', '12mo+': '12+ months',
-}
+const TRANSITION_TIMELINES = ['0–6 months', '6–12 months', '1–2 years', '2+ years']
+const ACQUISITION_TIMELINES = ['0–6 months', '6–12 months', '1–2 years', '2+ years']
 
 type Advisor = {
   id: string
@@ -48,24 +41,24 @@ type Advisor = {
   province: string
   years_in_practice: number
   intent: string
-  aum_value: number | null
-  aum_unit: string | null
+  aum: number | null
   client_count: number | null
   transition_duration: string | null
-  stay_on_postsale: boolean | null
-  acq_budget_value: number | null
-  acq_budget_unit: string | null
-  acq_timeline: string | null
-  acq_geo_pref: string[] | null
-  buyer_geo_pref: string[] | null
+  willing_to_stay: boolean | null
+  acquisition_budget: number | null
+  acquisition_timeline: string | null
+  target_provinces: string[] | null
+  target_cities: string[] | null
   specialties: string[]
   carrier_affiliations: string[]
   bio: string | null
   avatar_url: string | null
 }
 
-function formatAUM(value: number, unit: string | null) {
-  return `$${value}${unit === 'thousands' ? 'K' : 'M'}`
+function formatAUM(value: number) {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
+  return `$${value.toLocaleString()}`
 }
 
 function getInitials(fullName: string) {
@@ -132,7 +125,6 @@ export default function MarketplacePage() {
     setLoading(false)
   }, [province, selectedSpecialties, selectedCarriers, aumRange, budgetRange, minYears, maxYears, timeline])
 
-  // Fetch saved advisor details
   useEffect(() => {
     if (savedIds.length === 0) { setSavedAdvisors([]); return }
     const saved = advisors.filter(a => savedIds.includes(a.id))
@@ -226,8 +218,8 @@ export default function MarketplacePage() {
 
           {!isSeller && (
             <FilterSection label="Transition Timeline">
-              {TIMELINES.map(t => (
-                <FilterChip key={t} label={TIMELINE_LABELS[t]} active={timeline === t}
+              {TRANSITION_TIMELINES.map(t => (
+                <FilterChip key={t} label={t} active={timeline === t}
                   onClick={() => setTimeline(timeline === t ? '' : t)} />
               ))}
             </FilterSection>
@@ -247,8 +239,8 @@ export default function MarketplacePage() {
 
           {isSeller && (
             <FilterSection label="Acquisition Timeline">
-              {ACQ_TIMELINES.map(t => (
-                <FilterChip key={t} label={ACQ_TIMELINE_LABELS[t]} active={timeline === t}
+              {ACQUISITION_TIMELINES.map(t => (
+                <FilterChip key={t} label={t} active={timeline === t}
                   onClick={() => setTimeline(timeline === t ? '' : t)} />
               ))}
             </FilterSection>
@@ -337,10 +329,10 @@ function SellerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => voi
       </div>
 
       <div style={statRowStyle}>
-        {advisor.aum_value && <StatPill label="AUM" value={formatAUM(advisor.aum_value, advisor.aum_unit)} />}
+        {advisor.aum && <StatPill label="AUM" value={formatAUM(advisor.aum)} />}
         {advisor.client_count && <StatPill label="Clients" value={advisor.client_count.toLocaleString()} />}
-        {advisor.transition_duration && <StatPill label="Timeline" value={TIMELINE_LABELS[advisor.transition_duration] ?? advisor.transition_duration} />}
-        {advisor.stay_on_postsale && <StatPill label="" value="Open to staying on" highlight />}
+        {advisor.transition_duration && <StatPill label="Timeline" value={advisor.transition_duration} />}
+        {advisor.willing_to_stay && <StatPill label="" value="Open to staying on" highlight />}
       </div>
 
       {advisor.specialties?.length > 0 && (
@@ -382,9 +374,11 @@ function BuyerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => void
       </div>
 
       <div style={statRowStyle}>
-        {advisor.acq_budget_value && <StatPill label="Budget" value={formatAUM(advisor.acq_budget_value, advisor.acq_budget_unit)} />}
-        {advisor.acq_timeline && <StatPill label="Timeline" value={ACQ_TIMELINE_LABELS[advisor.acq_timeline] ?? advisor.acq_timeline} />}
-        {advisor.acq_geo_pref && advisor.acq_geo_pref.length > 0 && <StatPill label="Target region" value={advisor.acq_geo_pref.join(', ')} />}
+        {advisor.acquisition_budget && <StatPill label="Budget" value={formatAUM(advisor.acquisition_budget)} />}
+        {advisor.acquisition_timeline && <StatPill label="Timeline" value={advisor.acquisition_timeline} />}
+        {advisor.target_provinces && advisor.target_provinces.length > 0 && (
+          <StatPill label="Target region" value={advisor.target_provinces.join(', ')} />
+        )}
       </div>
 
       {advisor.specialties?.length > 0 && (
