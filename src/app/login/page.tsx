@@ -37,107 +37,6 @@ function KlarumLogo() {
   )
 }
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit() {
-    if (!email || !password) return setError('Please enter your email and password.')
-    setError(null)
-    setLoading(true)
-
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-
-    const data = await res.json()
-    setLoading(false)
-
-    if (!res.ok) {
-      setError(data.error ?? 'Invalid email or password.')
-      return
-    }
-
-    router.push('/profile')
-  }
-
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: BRAND.chalk,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem',
-    }}>
-      <div style={{ width: '100%', maxWidth: '440px' }}>
-
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <KlarumLogo />
-        </div>
-
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid rgba(11,31,58,0.08)', padding: '2.5rem' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '26px', fontWeight: 400, color: BRAND.navy, marginBottom: '.5rem', lineHeight: 1.2 }}>
-              Sign in
-            </h1>
-            <p style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6 }}>
-              Welcome back to Novation.
-            </p>
-          </div>
-
-          <Field label="Email">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="jane@example.com"
-              style={inputStyle}
-              autoFocus
-            />
-          </Field>
-
-          <Field label="Password">
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="••••••••"
-              style={inputStyle}
-            />
-          </Field>
-
-          {error && (
-            <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={submitBtn(loading)}
-          >
-            {loading ? 'Signing in…' : 'Sign in →'}
-          </button>
-
-          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '13px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}>
-            Don't have an account?{' '}
-            <a href="/register" style={{ color: BRAND.electric, textDecoration: 'none' }}>Request access</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '1.25rem' }}>
@@ -176,3 +75,190 @@ const submitBtn = (disabled: boolean): React.CSSProperties => ({
   transition: 'background .15s',
   marginTop: '0.25rem',
 })
+
+function SignInTab() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit() {
+    if (!email || !password) return setError('Please enter your email and password.')
+    setError(null)
+    setLoading(true)
+
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await res.json()
+    setLoading(false)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Invalid email or password.')
+      return
+    }
+
+    router.push('/profile')
+  }
+
+  return (
+    <>
+      <Field label="Email">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="jane@example.com"
+          style={inputStyle}
+          autoFocus
+        />
+      </Field>
+
+      <Field label="Password">
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="••••••••"
+          style={inputStyle}
+        />
+      </Field>
+
+      {error && (
+        <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
+
+      <button onClick={handleSubmit} disabled={loading} style={submitBtn(loading)}>
+        {loading ? 'Signing in…' : 'Sign in →'}
+      </button>
+    </>
+  )
+}
+
+function JoinTab() {
+  const router = useRouter()
+  const [code, setCode] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit() {
+    if (!code.trim()) return setError('Please enter your invite code.')
+    setError(null)
+    setLoading(true)
+
+    const res = await fetch('/api/validate-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() }),
+    })
+
+    const data = await res.json()
+    setLoading(false)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Invalid or inactive invite code.')
+      return
+    }
+
+    router.push(`/register?token=${encodeURIComponent(code.trim())}`)
+  }
+
+  return (
+    <>
+      <p style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+        Novation is invite-only. Enter your invite code to create your advisor profile.
+      </p>
+
+      <Field label="Invite code">
+        <input
+          type="text"
+          value={code}
+          onChange={e => setCode(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="e.g. NOVATION-2024"
+          style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+          autoFocus
+        />
+      </Field>
+
+      {error && (
+        <div style={{ fontSize: '13px', color: '#DC2626', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
+
+      <button onClick={handleSubmit} disabled={loading} style={submitBtn(loading)}>
+        {loading ? 'Checking…' : 'Continue →'}
+      </button>
+
+      <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '13px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}>
+        Don't have an invite code?{' '}
+        <a href="mailto:hello@klarum.ca" style={{ color: BRAND.electric, textDecoration: 'none' }}>Request access</a>
+      </div>
+    </>
+  )
+}
+
+export default function LoginPage() {
+  const [tab, setTab] = useState<'signin' | 'join'>('signin')
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: BRAND.chalk,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+    }}>
+      <div style={{ width: '100%', maxWidth: '440px' }}>
+
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <KlarumLogo />
+        </div>
+
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid rgba(11,31,58,0.08)', padding: '2.5rem' }}>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(11,31,58,0.08)', marginBottom: '2rem' }}>
+            {(['signin', 'join'] as const).map((t) => {
+              const active = tab === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    fontSize: '14px',
+                    fontWeight: active ? 600 : 400,
+                    fontFamily: 'DM Sans, sans-serif',
+                    color: active ? BRAND.midnight : '#9CA3AF',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: active ? `2px solid ${BRAND.electric}` : '2px solid transparent',
+                    marginBottom: '-1px',
+                    cursor: 'pointer',
+                    transition: 'all .15s',
+                  }}
+                >
+                  {t === 'signin' ? 'Sign in' : 'Join'}
+                </button>
+              )
+            })}
+          </div>
+
+          {tab === 'signin' ? <SignInTab /> : <JoinTab />}
+        </div>
+      </div>
+    </div>
+  )
+}
