@@ -11,28 +11,18 @@ type AdvisorProfile = {
   province: string
   years_in_practice: number
   intent: 'selling' | 'buying'
-  aum_value: number | null
-  aum_unit: string | null
+  aum: number | null
   client_count: number | null
   transition_duration: string | null
-  stay_on_postsale: boolean | null
-  acq_budget_value: number | null
-  acq_budget_unit: string | null
-  acq_timeline: string | null
-  buyer_geo_pref: string[] | null
-  acq_geo_pref: string[] | null
+  willing_to_stay: boolean | null
+  acquisition_budget: number | null
+  acquisition_timeline: string | null
+  target_provinces: string[] | null
+  target_cities: string[] | null
   bio: string | null
   specialties: string[]
   carrier_affiliations: string[]
   avatar_url: string | null
-}
-
-const TIMELINE_LABELS: Record<string, string> = {
-  '3mo': '3 months', '6mo': '6 months', '12mo': '12 months', '18mo+': '18+ months',
-}
-
-const ACQ_TIMELINE_LABELS: Record<string, string> = {
-  '0-3mo': '0–3 months', '3-6mo': '3–6 months', '6-12mo': '6–12 months', '12mo+': '12+ months',
 }
 
 const EditIcon = () => (
@@ -54,11 +44,6 @@ function getInitials(fullName: string) {
   if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
   if (parts.length === 1) return parts[0][0].toUpperCase()
   return '?'
-}
-
-function formatAUM(value: number, unit: string | null) {
-  const label = unit === 'thousands' ? 'K' : 'M'
-  return `$${value}${label}`
 }
 
 export default function ProfilePage() {
@@ -147,7 +132,7 @@ export default function ProfilePage() {
                 <>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">AUM</div>
-                    <div className="nov-stat-val">{profile.aum_value ? formatAUM(profile.aum_value, profile.aum_unit) : '—'}</div>
+                    <div className="nov-stat-val">{profile.aum ? `$${profile.aum.toLocaleString()}` : '—'}</div>
                   </div>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Clients</div>
@@ -155,26 +140,26 @@ export default function ProfilePage() {
                   </div>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Transition window</div>
-                    <div className="nov-stat-val">{profile.transition_duration ? (TIMELINE_LABELS[profile.transition_duration] ?? profile.transition_duration) : '—'}</div>
+                    <div className="nov-stat-val">{profile.transition_duration ?? '—'}</div>
                   </div>
                   <div className="nov-stat-box">
-                    <div className="nov-stat-label">Target buyer province</div>
-                    <div className="nov-stat-val">{profile.buyer_geo_pref?.join(', ') ?? '—'}</div>
+                    <div className="nov-stat-label">Target geography</div>
+                    <div className="nov-stat-val">{profile.target_provinces?.join(', ') ?? '—'}</div>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Acquisition budget</div>
-                    <div className="nov-stat-val">{profile.acq_budget_value ? formatAUM(profile.acq_budget_value, profile.acq_budget_unit) : '—'}</div>
+                    <div className="nov-stat-val">{profile.acquisition_budget ? `$${profile.acquisition_budget.toLocaleString()}` : '—'}</div>
                   </div>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Acquisition timeline</div>
-                    <div className="nov-stat-val">{profile.acq_timeline ? (ACQ_TIMELINE_LABELS[profile.acq_timeline] ?? profile.acq_timeline) : '—'}</div>
+                    <div className="nov-stat-val">{profile.acquisition_timeline ?? '—'}</div>
                   </div>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Target geography</div>
-                    <div className="nov-stat-val">{profile.acq_geo_pref?.join(', ') ?? '—'}</div>
+                    <div className="nov-stat-val">{profile.target_provinces?.join(', ') ?? '—'}</div>
                   </div>
                   <div className="nov-stat-box">
                     <div className="nov-stat-label">Years in practice</div>
@@ -200,7 +185,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {isSeller && profile.stay_on_postsale && (
+            {isSeller && profile.willing_to_stay && (
               <div className="nov-stay-row">
                 <div className="nov-stay-check"><CheckIcon /></div>
                 <span className="nov-stay-text">Open to staying on post-sale during transition</span>
