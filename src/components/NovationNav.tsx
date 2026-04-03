@@ -1,10 +1,22 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function NovationNav() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <nav className="nov-nav">
@@ -34,8 +46,11 @@ export default function NovationNav() {
           Inbox
         </Link>
         <Link href="/profile" className={`nov-nav-link ${pathname.startsWith('/profile') ? 'active' : ''}`}>
-          My Profile
+          Profile
         </Link>
+        <button onClick={handleSignOut} className="nov-nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          Sign out
+        </button>
       </div>
     </nav>
   )
