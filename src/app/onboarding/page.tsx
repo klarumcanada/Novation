@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SPECIALTIES, CARRIERS } from '@/lib/validations'
 
 type Intent = 'selling' | 'buying'
+type BookMix = 'life' | 'investments' | 'mixed'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -18,6 +19,63 @@ const BRAND = {
 const PROVINCES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']
 const TRANSITION_DURATIONS = ['0–6 months', '6–12 months', '1–2 years', '2+ years']
 const ACQUISITION_TIMELINES = ['0–6 months', '6–12 months', '1–2 years', '2+ years']
+
+// ── Valuation logic ───────────────────────────────────────────────
+
+function calcValuation(
+  revenue: number,
+  mix: BookMix,
+  expenseRatio: number,
+  timeline: string,
+  retention: number,
+  years: number,
+): { low: number; high: number; method: 'revenue' | 'ebitda' } {
+  let low: number
+  let high: number
+  let method: 'revenue' | 'ebitda'
+
+  if (revenue >= 1_000_000) {
+    // EBITDA path
+    method = 'ebitda'
+    const ebitda = revenue * (1 - expenseRatio / 100)
+    low = ebitda * 5.0
+    high = ebitda * 6.0
+  } else {
+    // Revenue multiple path
+    method = 'revenue'
+    if (mix === 'life') { low = revenue * 1.5; high = revenue * 2.0 }
+    else if (mix === 'investments') { low = revenue * 2.0; high = revenue * 2.5 }
+    else { low = revenue * 2.0; high = revenue * 2.5 }
+  }
+
+  // Adjustments (±10% each)
+  // Timeline: faster = higher
+  const timelineAdj = timeline === '0–6 months' ? 1.05
+    : timeline === '6–12 months' ? 1.0
+    : timeline === '1–2 years' ? 0.97
+    : 0.93
+
+  // Retention
+  const retentionAdj = retention >= 95 ? 1.08
+    : retention >= 85 ? 1.0
+    : retention >= 75 ? 0.95
+    : 0.90
+
+  // Years in practice
+  const yearsAdj = years >= 20 ? 1.05
+    : years >= 10 ? 1.0
+    : years >= 5 ? 0.97
+    : 0.93
+
+  low = Math.round(low * timelineAdj * retentionAdj * yearsAdj)
+  high = Math.round(high * timelineAdj * retentionAdj * yearsAdj)
+
+  return { low, high, method }
+}
+
+function fmt(n: number) {
+  return '$' + n.toLocaleString('en-CA', { maximumFractionDigits: 0 })
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -36,6 +94,16 @@ export default function OnboardingPage() {
   const [targetCities, setTargetCities] = useState<string[]>([])
   const [transitionDuration, setTransitionDuration] = useState('')
   const [willingToStay, setWillingToStay] = useState(false)
+  const [bookValue, setBookValue] = useState('')
+
+  // Estimator state
+  const [estimatorOpen, setEstimatorOpen] = useState(false)
+  const [estRevenue, setEstRevenue] = useState('')
+  const [estMix, setEstMix] = useState<BookMix | null>(null)
+  const [estExpenseRatio, setEstExpenseRatio] = useState('40')
+  const [estRetention, setEstRetention] = useState('90')
+  const [estYears, setEstYears] = useState('')
+  const [estResult, setEstResult] = useState<{ low: number; high: number; method: 'revenue' | 'ebitda' } | null>(null)
 
   // Buyer fields
   const [acquisitionBudget, setAcquisitionBudget] = useState('')
@@ -45,6 +113,25 @@ export default function OnboardingPage() {
 
   function toggleMulti(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
+  }
+
+  function runEstimator() {
+    if (!estRevenue || !estMix) return
+    const result = calcValuation(
+      Number(estRevenue),
+      estMix,
+      Number(estExpenseRatio),
+      transitionDuration,
+      Number(estRetention),
+      Number(estYears) || 10,
+    )
+    setEstResult(result)
+  }
+
+  function applyEstimate(value: number) {
+    setBookValue(String(value))
+    setEstimatorOpen(false)
+    setEstResult(null)
   }
 
   async function handleSubmit() {
@@ -68,6 +155,7 @@ export default function OnboardingPage() {
       payload.target_cities = targetCities.length ? targetCities : null
       payload.transition_duration = transitionDuration || null
       payload.willing_to_stay = willingToStay
+      payload.book_value = bookValue ? Number(bookValue) : null
     } else {
       payload.acquisition_budget = acquisitionBudget ? Number(acquisitionBudget) : null
       payload.acquisition_timeline = acquisitionTimeline || null
@@ -163,6 +251,225 @@ export default function OnboardingPage() {
                 placeholder="e.g. 150"
                 style={inputStyle}
               />
+            </Field>
+
+            {/* Book value + estimator */}
+            <Field label="Estimated book value (CAD)">
+              <div style={{ position: 'relative' }}>
+                <span style={currencyPrefix}>$</span>
+                <input
+                  type="number"
+                  value={bookValue}
+                  onChange={e => setBookValue(e.target.value)}
+                  placeholder="e.g. 1500000"
+                  style={{ ...inputStyle, paddingLeft: '28px' }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEstimatorOpen(o => !o); setEstResult(null) }}
+                style={{
+                  marginTop: '8px',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '13px', color: BRAND.electric,
+                  fontFamily: 'DM Sans, sans-serif', padding: '0',
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                }}
+              >
+                <span style={{
+                  display: 'inline-block',
+                  transform: estimatorOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  fontSize: '11px',
+                }}>▶</span>
+                Help me estimate my book value
+              </button>
+
+              {/* Inline estimator */}
+              {estimatorOpen && (
+                <div style={{
+                  marginTop: '16px',
+                  background: 'white',
+                  border: `1.5px solid ${BRAND.electric}`,
+                  borderRadius: '12px',
+                  padding: '24px',
+                }}>
+                  <div style={{
+                    fontSize: '13px', fontWeight: 600, color: BRAND.midnight,
+                    fontFamily: 'DM Sans, sans-serif', marginBottom: '20px',
+                    letterSpacing: '0.01em',
+                  }}>
+                    Book value estimator
+                  </div>
+
+                  {/* Annual revenue */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={estLabel}>Annual revenue (CAD) *</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={currencyPrefix}>$</span>
+                      <input
+                        type="number"
+                        value={estRevenue}
+                        onChange={e => { setEstRevenue(e.target.value); setEstResult(null) }}
+                        placeholder="e.g. 450000"
+                        style={{ ...inputStyle, paddingLeft: '28px' }}
+                      />
+                    </div>
+                    {Number(estRevenue) >= 1_000_000 && (
+                      <div style={{ fontSize: '12px', color: BRAND.electric, marginTop: '4px', fontFamily: 'DM Sans, sans-serif' }}>
+                        EBITDA-based valuation will be used for books over $1M revenue.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Book mix */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={estLabel}>Book composition *</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {([
+                        ['life', 'Life insurance heavy', '1.5×–2.0× revenue'],
+                        ['investments', 'Investments / AUM heavy', '2.0×–2.5× revenue'],
+                        ['mixed', 'Mixed book', '2.0×–2.5× revenue'],
+                      ] as [BookMix, string, string][]).map(([val, label, hint]) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => { setEstMix(val); setEstResult(null) }}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: estMix === val ? `2px solid ${BRAND.electric}` : '1.5px solid #d1d5db',
+                            background: estMix === val ? BRAND.ice : 'white',
+                            cursor: 'pointer', textAlign: 'left',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          }}
+                        >
+                          <span style={{ fontSize: '13px', fontWeight: estMix === val ? 500 : 400, color: BRAND.midnight, fontFamily: 'DM Sans, sans-serif' }}>
+                            {label}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}>
+                            {hint}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* EBITDA path: expense ratio */}
+                  {Number(estRevenue) >= 1_000_000 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={estLabel}>Estimated expense ratio (%)</label>
+                      <div style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>
+                        Typical range is 30–50%. Leave at 40% if unsure.
+                      </div>
+                      <input
+                        type="number"
+                        min="10"
+                        max="80"
+                        value={estExpenseRatio}
+                        onChange={e => { setEstExpenseRatio(e.target.value); setEstResult(null) }}
+                        style={{ ...inputStyle, width: '120px' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Retention */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={estLabel}>Client retention rate (%)</label>
+                    <input
+                      type="number"
+                      min="50"
+                      max="100"
+                      value={estRetention}
+                      onChange={e => { setEstRetention(e.target.value); setEstResult(null) }}
+                      placeholder="90"
+                      style={{ ...inputStyle, width: '120px' }}
+                    />
+                  </div>
+
+                  {/* Years in practice */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={estLabel}>Years in practice</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={estYears}
+                      onChange={e => { setEstYears(e.target.value); setEstResult(null) }}
+                      placeholder="e.g. 15"
+                      style={{ ...inputStyle, width: '120px' }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={runEstimator}
+                    disabled={!estRevenue || !estMix}
+                    style={{
+                      width: '100%', padding: '11px', fontSize: '13px', fontWeight: 500,
+                      fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none',
+                      background: (!estRevenue || !estMix) ? '#d1d5db' : BRAND.electric,
+                      color: (!estRevenue || !estMix) ? '#9ca3af' : 'white',
+                      cursor: (!estRevenue || !estMix) ? 'not-allowed' : 'pointer',
+                      transition: 'background .15s',
+                    }}
+                  >
+                    Calculate estimate
+                  </button>
+
+                  {/* Result */}
+                  {estResult && (
+                    <div style={{
+                      marginTop: '20px',
+                      background: BRAND.chalk,
+                      borderRadius: '10px',
+                      padding: '20px',
+                      border: '1px solid rgba(11,31,58,0.07)',
+                    }}>
+                      <div style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginBottom: '8px' }}>
+                        Estimated range
+                      </div>
+                      <div style={{
+                        fontFamily: 'Playfair Display, serif',
+                        fontSize: '28px', fontWeight: 400,
+                        color: BRAND.midnight, letterSpacing: '-0.02em',
+                        marginBottom: '4px',
+                      }}>
+                        {fmt(estResult.low)} – {fmt(estResult.high)}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginBottom: '16px', lineHeight: 1.5 }}>
+                        {estResult.method === 'ebitda'
+                          ? `Based on estimated EBITDA × 5.0–6.0×. Adjusted for retention, timeline, and experience.`
+                          : `Based on ${estMix === 'life' ? '1.5–2.0×' : '2.0–2.5×'} revenue multiple. Adjusted for retention, timeline, and experience.`
+                        }
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => applyEstimate(estResult.low)}
+                          style={applyBtn(false)}
+                        >
+                          Use low ({fmt(estResult.low)})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyEstimate(Math.round((estResult.low + estResult.high) / 2))}
+                          style={applyBtn(true)}
+                        >
+                          Use midpoint
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyEstimate(estResult.high)}
+                          style={applyBtn(false)}
+                        >
+                          Use high ({fmt(estResult.high)})
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </Field>
 
             <Field label="Target geography — Province">
@@ -530,6 +837,31 @@ function Field({ label, required, tooltip, children }: {
 }
 
 // ── Styles ────────────────────────────────────────────────────────
+
+const estLabel: React.CSSProperties = {
+  display: 'block',
+  fontFamily: 'DM Sans, sans-serif',
+  fontSize: '12px',
+  fontWeight: 500,
+  color: '#6B7280',
+  marginBottom: '6px',
+  letterSpacing: '0.01em',
+}
+
+const applyBtn = (primary: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '8px 10px',
+  fontSize: '12px',
+  fontFamily: 'DM Sans, sans-serif',
+  fontWeight: 500,
+  borderRadius: '7px',
+  border: primary ? 'none' : `1.5px solid #d1d5db`,
+  background: primary ? BRAND.electric : 'white',
+  color: primary ? 'white' : BRAND.navy,
+  cursor: 'pointer',
+  transition: 'all .15s',
+  textAlign: 'center' as const,
+})
 
 const intentBtn = (active: boolean): React.CSSProperties => ({
   flex: 1, padding: '12px 8px', fontSize: '13px',
