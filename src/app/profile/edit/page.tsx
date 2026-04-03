@@ -94,17 +94,17 @@ export default function ProfileEditPage() {
           specialties: data.specialties ?? [],
           carrier_affiliations: data.carrier_affiliations ?? [],
           bio: data.bio ?? '',
-          aum_value: data.aum_value?.toString() ?? '',
-          aum_unit: data.aum_unit ?? 'millions',
+          aum_value: data.aum ? String(data.aum) : '',
+          aum_unit: 'millions',
           client_count: data.client_count?.toString() ?? '',
           transition_duration: data.transition_duration ?? '',
-          stay_on_postsale: data.stay_on_postsale ?? null,
-          buyer_geo_pref: data.buyer_geo_pref ?? [],
-          acq_budget_value: data.acq_budget_value?.toString() ?? '',
-          acq_budget_unit: data.acq_budget_unit ?? 'millions',
-          acq_geo_pref: data.acq_geo_pref ?? [],
+          stay_on_postsale: data.willing_to_stay ?? null,
+          buyer_geo_pref: data.target_provinces ?? [],
+          acq_budget_value: data.acquisition_budget ? String(data.acquisition_budget) : '',
+          acq_budget_unit: 'millions',
+          acq_geo_pref: data.target_provinces ?? [],
           financing_status: data.financing_status ?? '',
-          acq_timeline: data.acq_timeline ?? '',
+          acq_timeline: data.acquisition_timeline ?? '',
           avatar_url: data.avatar_url ?? '',
         })
       })
@@ -123,46 +123,34 @@ export default function ProfileEditPage() {
     set(key, list.includes(value) ? list.filter(v => v !== value) : [...list, value])
   }
 
-async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-  const file = e.target.files?.[0]
-  if (!file) {
-    console.log('NO FILE SELECTED')
-    return
-  }
-  console.log('FILE:', file.name, file.size, file.type)
-  setUploading(true)
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  console.log('USER:', user?.id)
-  if (!user) {
-    console.log('NO USER')
-    return
-  }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-  const ext = file.name.split('.').pop()
-  const path = `${user.id}/avatar.${ext}`
-  console.log('UPLOADING TO PATH:', path)
+    const ext = file.name.split('.').pop()
+    const path = `${user.id}/avatar.${ext}`
 
-  const { data, error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(path, file, { upsert: true })
+    const { data, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true })
 
-  console.log('UPLOAD RESULT:', data, 'ERROR:', uploadError)
+    if (uploadError) {
+      setError(`Upload failed: ${uploadError.message}`)
+      setUploading(false)
+      return
+    }
 
-  if (uploadError) {
-    setError(`Upload failed: ${uploadError.message}`)
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path)
+
+    set('avatar_url', `${publicUrl}?t=${Date.now()}`)
     setUploading(false)
-    return
   }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(path)
-
-  console.log('PUBLIC URL:', publicUrl)
-  set('avatar_url', `${publicUrl}?t=${Date.now()}`)
-  setUploading(false)
-}
 
   async function handleSubmit() {
     if (!form.intent) return setError('Please select your intent.')
@@ -207,7 +195,7 @@ async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
             </h1>
           </div>
           <button onClick={() => router.push('/profile')} style={ghostBtn}>
-            ← My Profile
+            ← Profile
           </button>
         </div>
 
@@ -415,8 +403,6 @@ async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     </div>
   )
 }
-
-// ── MultiSelect ───────────────────────────────────────────────────
 
 function MultiSelect({ options, selected, onToggle, placeholder, labelMap }: {
   options: string[], selected: string[], onToggle: (v: string) => void,
