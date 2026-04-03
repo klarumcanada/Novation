@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
 import { SPECIALTIES, CARRIERS } from '@/lib/validations'
 
@@ -81,7 +80,6 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
 }
 
 export default function MarketplacePage() {
-  const router = useRouter()
   const [advisors, setAdvisors] = useState<Advisor[]>([])
   const [savedAdvisors, setSavedAdvisors] = useState<Advisor[]>([])
   const [savedIds, setSavedIds] = useState<string[]>([])
@@ -156,7 +154,6 @@ export default function MarketplacePage() {
   return (
     <div style={{ background: BRAND.chalk, minHeight: '100vh' }}>
       <NovationNav />
-
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2.5rem 1.5rem', display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
 
         {/* Filters */}
@@ -238,7 +235,7 @@ export default function MarketplacePage() {
 
         {/* Cards */}
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', borderBottom: '1px solid #E5E7EB' }}>
+          <div style={{ display: 'flex', marginBottom: '1.5rem', borderBottom: '1px solid #E5E7EB' }}>
             {(['browse', 'saved'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: tab === t ? 600 : 400, fontFamily: 'DM Sans, sans-serif', background: 'none', border: 'none', borderBottom: tab === t ? `2px solid ${BRAND.midnight}` : '2px solid transparent', color: tab === t ? BRAND.midnight : '#9CA3AF', cursor: 'pointer', marginBottom: '-1px', transition: 'all .15s' }}>
                 {t === 'browse' ? 'Browse' : `Saved${savedIds.length > 0 ? ` (${savedIds.length})` : ''}`}
@@ -260,8 +257,8 @@ export default function MarketplacePage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               {displayedAdvisors.map(a => (
                 isSeller
-                  ? <BuyerCard key={a.id} advisor={a} onClick={() => router.push(`/marketplace/${a.id}`)} />
-                  : <SellerCard key={a.id} advisor={a} onClick={() => router.push(`/marketplace/${a.id}`)} />
+                  ? <BuyerCard key={a.id} advisor={a} href={`/marketplace/${a.id}`} />
+                  : <SellerCard key={a.id} advisor={a} href={`/marketplace/${a.id}`} />
               ))}
             </div>
           )}
@@ -271,11 +268,12 @@ export default function MarketplacePage() {
   )
 }
 
-function SellerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => void }) {
+function SellerCard({ advisor, href }: { advisor: Advisor; href: string }) {
+  const cardHoverStyle: React.CSSProperties = { ...cardStyle, cursor: 'pointer', textDecoration: 'none', display: 'block' }
   return (
-    <div onClick={onClick} style={{ ...cardStyle, cursor: 'pointer' }}
-      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)')}
-      onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+    <a href={href} style={cardHoverStyle}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
       <div style={{ borderLeft: `3px solid ${BRAND.voltage}`, paddingLeft: '12px', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -289,7 +287,6 @@ function SellerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => voi
           <span style={sellerBadge}>Seller</span>
         </div>
       </div>
-
       <div style={statRowStyle}>
         {advisor.book_value
           ? <StatPill label="Book Value" value={formatMoney(advisor.book_value)} highlight />
@@ -301,29 +298,28 @@ function SellerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => voi
         {advisor.transition_duration && <StatPill label="Timeline" value={advisor.transition_duration} />}
         {advisor.willing_to_stay && <StatPill label="" value="Open to staying on" />}
       </div>
-
       {advisor.specialties?.length > 0 && (
         <div style={listSectionStyle}>
           <span style={listLabelStyle}>Specialties</span>
           <span style={listValueStyle}>{advisor.specialties.join(', ')}</span>
         </div>
       )}
-
       {advisor.carrier_affiliations?.length > 0 && (
         <div style={listSectionStyle}>
           <span style={listLabelStyle}>Carriers</span>
           <span style={listValueStyle}>{advisor.carrier_affiliations.join(', ')}</span>
         </div>
       )}
-    </div>
+    </a>
   )
 }
 
-function BuyerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => void }) {
+function BuyerCard({ advisor, href }: { advisor: Advisor; href: string }) {
+  const cardHoverStyle: React.CSSProperties = { ...cardStyle, cursor: 'pointer', textDecoration: 'none', display: 'block' }
   return (
-    <div onClick={onClick} style={{ ...cardStyle, cursor: 'pointer' }}
-      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)')}
-      onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+    <a href={href} style={cardHoverStyle}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
       <div style={{ borderLeft: `3px solid ${BRAND.electric}`, paddingLeft: '12px', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -337,7 +333,6 @@ function BuyerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => void
           <span style={buyerBadge}>Buyer</span>
         </div>
       </div>
-
       <div style={statRowStyle}>
         {advisor.acquisition_budget && <StatPill label="Budget" value={formatMoney(advisor.acquisition_budget)} />}
         {advisor.acquisition_timeline && <StatPill label="Timeline" value={advisor.acquisition_timeline} />}
@@ -345,21 +340,19 @@ function BuyerCard({ advisor, onClick }: { advisor: Advisor; onClick: () => void
           <StatPill label="Target region" value={advisor.target_provinces.join(', ')} />
         )}
       </div>
-
       {advisor.specialties?.length > 0 && (
         <div style={listSectionStyle}>
           <span style={listLabelStyle}>Specialties</span>
           <span style={listValueStyle}>{advisor.specialties.join(', ')}</span>
         </div>
       )}
-
       {advisor.carrier_affiliations?.length > 0 && (
         <div style={listSectionStyle}>
           <span style={listLabelStyle}>Carriers</span>
           <span style={listValueStyle}>{advisor.carrier_affiliations.join(', ')}</span>
         </div>
       )}
-    </div>
+    </a>
   )
 }
 
