@@ -27,7 +27,6 @@ export default async function MgaLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Verify this user belongs to this MGA
   const { data: mgaUser } = await supabase
     .from('mga_users')
     .select('role, mgas(id, name, slug)')
@@ -36,8 +35,8 @@ export default async function MgaLayout({
 
   if (!mgaUser) redirect('/login')
 
-  const mga = mgaUser.mgas as { id: string; name: string; slug: string }
-  if (mga.slug !== slug) redirect('/login')
+  const mga = (Array.isArray(mgaUser.mgas) ? mgaUser.mgas[0] : mgaUser.mgas) as { id: string; name: string; slug: string }
+  if (!mga || mga.slug !== slug) redirect('/login')
 
   return (
     <div className="mga-layout">
