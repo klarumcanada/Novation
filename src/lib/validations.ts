@@ -52,17 +52,17 @@ const sellerFields = z.object({
   aum_value: z.coerce.number().positive().optional().nullable(),
   aum_unit: z.enum(['thousands', 'millions']).optional().nullable(),
   client_count: z.coerce.number().int().positive().optional().nullable(),
-  transition_duration: z.enum(['3mo', '6mo', '12mo', '18mo+']).optional().nullable(),
+  transition_duration: z.string().optional().nullable(),
   stay_on_postsale: z.boolean().optional().nullable(),
-  buyer_geo_pref: z.array(z.enum(PROVINCES)).optional().nullable(),
+  buyer_geo_pref: z.array(z.string()).optional().nullable(),
 })
 
 const buyerFields = z.object({
   acq_budget_value: z.coerce.number().positive().optional().nullable(),
   acq_budget_unit: z.enum(['thousands', 'millions']).optional().nullable(),
-  acq_geo_pref: z.array(z.enum(PROVINCES)).optional().nullable(),
-  financing_status: z.enum(['self-funded', 'seeking-financing', 'undecided']).optional().nullable(),
-  acq_timeline: z.enum(['0-3mo', '3-6mo', '6-12mo', '12mo+']).optional().nullable(),
+  acq_geo_pref: z.array(z.string()).optional().nullable(),
+  financing_status: z.string().optional().nullable(),
+  acq_timeline: z.string().optional().nullable(),
 })
 
 export const profileEditSchema = z.object({
