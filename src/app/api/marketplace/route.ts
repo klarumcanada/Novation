@@ -57,15 +57,15 @@ export async function GET(request: NextRequest) {
 
   let query = admin
     .from('advisors')
-    .select('id, full_name, province, years_in_practice, intent, aum_value, aum_unit, client_count, transition_duration, stay_on_postsale, acq_budget_value, acq_budget_unit, acq_timeline, acq_geo_pref, buyer_geo_pref, specialties, carrier_affiliations, bio')
+    .select('id, full_name, province, years_in_practice, intent, aum, client_count, transition_duration, willing_to_stay, acquisition_budget, acquisition_timeline, target_provinces, target_cities, specialties, carrier_affiliations, bio, avatar_url')
     .eq('intent', targetIntent)
     .neq('id', user.id)
 
   if (province) query = query.eq('province', province)
-  if (minAum) query = query.gte('aum_value', Number(minAum))
-  if (maxAum) query = query.lte('aum_value', Number(maxAum))
-  if (minBudget) query = query.gte('acq_budget_value', Number(minBudget))
-  if (maxBudget) query = query.lte('acq_budget_value', Number(maxBudget))
+  if (minAum) query = query.gte('aum', Number(minAum))
+  if (maxAum) query = query.lte('aum', Number(maxAum))
+  if (minBudget) query = query.gte('acquisition_budget', Number(minBudget))
+  if (maxBudget) query = query.lte('acquisition_budget', Number(maxBudget))
   if (minYears) query = query.gte('years_in_practice', Number(minYears))
   if (maxYears) query = query.lte('years_in_practice', Number(maxYears))
   if (timeline) query = query.eq('transition_duration', timeline)
