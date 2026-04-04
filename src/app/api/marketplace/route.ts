@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
   let query = admin
     .from('advisors')
-    .select('id, full_name, province, years_in_practice, intent, aum, client_count, transition_duration, willing_to_stay, acquisition_budget, acquisition_timeline, target_provinces, target_cities, specialties, carrier_affiliations, bio, avatar_url')
+  .select('id, full_name, province, years_in_practice, intent, aum, book_value, client_count, transition_duration, willing_to_stay, acquisition_budget, acquisition_timeline, target_provinces, target_cities, specialties, carrier_affiliations, bio, avatar_url')
     .eq('intent', targetIntent)
     .neq('id', user.id)
 
