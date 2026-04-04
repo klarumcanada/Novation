@@ -49,6 +49,7 @@ export const onboardingSchema = z.object({
 })
 
 const sellerFields = z.object({
+  book_value: z.coerce.number().positive().optional().nullable(),
   aum_value: z.coerce.number().positive().optional().nullable(),
   aum_unit: z.enum(['thousands', 'millions']).optional().nullable(),
   client_count: z.coerce.number().int().positive().optional().nullable(),
