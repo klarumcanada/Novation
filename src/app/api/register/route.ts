@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  await admin
+  // Mark invite code as used and get the mga_advisor_id
+  const { data: inviteRecord } = await admin
     .from('invite_codes')
     .update({
       is_active: false,
@@ -87,6 +88,16 @@ export async function POST(request: NextRequest) {
       used_at: new Date().toISOString(),
     })
     .eq('code', invite_code)
+    .select('mga_advisor_id')
+    .single()
+
+  // Update mga_advisors status to registered
+  if (inviteRecord?.mga_advisor_id) {
+    await admin
+      .from('mga_advisors')
+      .update({ status: 'registered' })
+      .eq('id', inviteRecord.mga_advisor_id)
+  }
 
   return NextResponse.json({ success: true }, { status: 200 })
 }
