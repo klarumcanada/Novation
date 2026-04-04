@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import NovationNav from '@/components/NovationNav'
 import { SPECIALTIES, CARRIERS } from '@/lib/validations'
 
@@ -271,7 +272,7 @@ export default function MarketplacePage() {
 function SellerCard({ advisor, href }: { advisor: Advisor; href: string }) {
   const cardHoverStyle: React.CSSProperties = { ...cardStyle, cursor: 'pointer', textDecoration: 'none', display: 'block' }
   return (
-    <a href={href} style={cardHoverStyle}
+    <Link href={href} style={cardHoverStyle}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
@@ -310,14 +311,14 @@ function SellerCard({ advisor, href }: { advisor: Advisor; href: string }) {
           <span style={listValueStyle}>{advisor.carrier_affiliations.join(', ')}</span>
         </div>
       )}
-    </a>
+    </Link>
   )
 }
 
 function BuyerCard({ advisor, href }: { advisor: Advisor; href: string }) {
   const cardHoverStyle: React.CSSProperties = { ...cardStyle, cursor: 'pointer', textDecoration: 'none', display: 'block' }
   return (
-    <a href={href} style={cardHoverStyle}
+    <Link href={href} style={cardHoverStyle}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
@@ -352,7 +353,7 @@ function BuyerCard({ advisor, href }: { advisor: Advisor; href: string }) {
           <span style={listValueStyle}>{advisor.carrier_affiliations.join(', ')}</span>
         </div>
       )}
-    </a>
+    </Link>
   )
 }
 

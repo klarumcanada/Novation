@@ -128,7 +128,7 @@ function SignInTab() {
       return
     }
 
-    router.push('/profile')
+   router.push(data.redirect ?? '/profile')
   }
 
   return (

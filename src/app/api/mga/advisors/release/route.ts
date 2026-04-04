@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Send invite email
-  const registerUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/register?code=${code}`
+  const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/login?code=${code}`
 
   const { error: emailError } = await resend.emails.send({
     from: 'Novation <hello@klarum.ca>',
@@ -125,13 +125,13 @@ export async function POST(req: NextRequest) {
           ${mga.name} has invited you to join Novation — a private marketplace for financial advisors to explore succession opportunities.
         </p>
 
-        <a href="${registerUrl}"
+        <a href="${loginUrl}"
            style="display: inline-block; background: #0D1B3E; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; margin-bottom: 24px;">
           Create your account →
         </a>
 
         <p style="font-size: 13px; color: #9CA3AF; line-height: 1.6; margin: 0 0 8px;">
-          Or copy this invite code into the registration page:
+          Or copy this invite code into the second tab on the login page:
         </p>
 
         <div style="background: #F8F7F4; border: 1px solid rgba(11,31,58,0.08); border-radius: 8px; padding: 14px 18px; font-family: monospace; font-size: 16px; color: #0D1B3E; letter-spacing: 0.08em; margin-bottom: 28px;">
@@ -146,7 +146,6 @@ export async function POST(req: NextRequest) {
   })
 
   if (emailError) {
-    // Don't fail the whole request — invite code is created, email just didn't send
     console.error('Email send failed:', emailError)
     return NextResponse.json({
       success: true,
