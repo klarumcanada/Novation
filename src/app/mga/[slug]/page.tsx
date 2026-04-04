@@ -33,7 +33,7 @@ export default async function MgaDashboard({
   // Get counts by status
   const { data: advisors } = await supabase
     .from('mga_advisors')
-    .select('status')
+    .select('status, full_name, province')
     .eq('mga_id', mga.id)
 
   const counts = {
@@ -143,9 +143,9 @@ export default async function MgaDashboard({
               {advisors?.slice(0, 5).map((a, i) => (
                 <tr key={i}>
                   <td>
-                    <div className="mga-table-name">—</div>
+                    <div className="mga-table-name">{a.full_name ?? '—'}</div>
                   </td>
-                  <td>—</td>
+                  <td>{a.province ?? '—'}</td>
                   <td>
                     <span className={`mga-status mga-status--${a.status}`}>
                       {a.status}
