@@ -4,7 +4,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
-export default function NovationNav() {
+type Props = {
+  unreadCount?: number
+}
+
+export default function NovationNav({ unreadCount = 0 }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -42,15 +46,24 @@ export default function NovationNav() {
         <Link href="/marketplace" className={`nov-nav-link ${pathname.startsWith('/marketplace') ? 'active' : ''}`}>
           Marketplace
         </Link>
-        <Link href="/inbox" className={`nov-nav-link ${pathname === '/inbox' ? 'active' : ''}`}>
+        <Link href="/inbox" className={`nov-nav-link ${pathname === '/inbox' ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           Inbox
+          {unreadCount > 0 && (
+            <span style={{
+              background: '#3B82F6', color: 'white',
+              fontSize: '10px', fontWeight: 700, borderRadius: '100px',
+              padding: '1px 6px', lineHeight: '16px',
+            }}>
+              {unreadCount}
+            </span>
+          )}
         </Link>
         <Link href="/profile" className={`nov-nav-link ${pathname.startsWith('/profile') ? 'active' : ''}`}>
           Profile
         </Link>
         <Link href="/deals" className={`nov-nav-link ${pathname.startsWith('/deals') ? 'active' : ''}`}>
-  Deals
-</Link>
+          Deals
+        </Link>
         <button onClick={handleSignOut} className="nov-nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           Sign out
         </button>
