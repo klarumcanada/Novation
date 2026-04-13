@@ -36,8 +36,6 @@ export async function GET() {
     .from('book_valuations')
     .select('*')
     .eq('advisor_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .maybeSingle()
 
   return NextResponse.json(data ?? null)
@@ -135,30 +133,9 @@ export async function POST(request: NextRequest) {
     updated_at: new Date().toISOString(),
   }
 
-  // If no deal_id, check for existing standalone valuation to update
-  if (!deal_id) {
-    const { data: existing } = await supabase
-      .from('book_valuations')
-      .select('id')
-      .eq('advisor_id', user.id)
-      .is('deal_id', null)
-      .maybeSingle()
-
-    if (existing) {
-      const { data: valuation, error } = await supabase
-        .from('book_valuations')
-        .update(payload)
-        .eq('id', existing.id)
-        .select()
-        .single()
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-      return NextResponse.json({ valuation })
-    }
-  }
-
   const { data: valuation, error } = await supabase
     .from('book_valuations')
-    .upsert(payload, { onConflict: 'advisor_id, deal_id' })
+    .upsert(payload, { onConflict: 'advisor_id' })
     .select()
     .single()
 
