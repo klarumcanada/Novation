@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,12 +19,11 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Mark the thread root and all replies to the user as read
   await supabase
     .from('messages')
     .update({ read_at: new Date().toISOString() })
     .eq('to_id', user.id)
-    .or(`id.eq.${params.id},parent_id.eq.${params.id}`)
+    .or(`id.eq.${id},parent_id.eq.${id}`)
     .is('read_at', null)
 
   return NextResponse.json({ success: true })
