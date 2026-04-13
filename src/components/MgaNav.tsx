@@ -44,32 +44,26 @@ export default function MgaNav({ mgaName, mgaSlug, userEmail }: MgaNavProps) {
             <span className="mga-logo-product">Novation</span>
           </div>
         </Link>
-
         <div className="mga-nav-divider" />
         <span className="mga-nav-name">{mgaName}</span>
-
         <div className="mga-nav-links">
-          <Link
-            href={base}
-            className={`mga-nav-link ${pathname === base ? 'active' : ''}`}
-          >
+          <Link href={base} className={`mga-nav-link ${pathname === base ? 'active' : ''}`}>
             Dashboard
           </Link>
-          <Link
-            href={`${base}/advisors`}
-            className={`mga-nav-link ${pathname.startsWith(`${base}/advisors`) ? 'active' : ''}`}
-          >
+          <Link href={`${base}/advisors`} className={`mga-nav-link ${pathname.startsWith(`${base}/advisors`) ? 'active' : ''}`}>
             Advisors
           </Link>
-          <Link
-            href={`${base}/team`}
-            className={`mga-nav-link ${pathname.startsWith(`${base}/team`) ? 'active' : ''}`}
-          >
+          <Link href={`${base}/deals`} className={`mga-nav-link ${pathname.startsWith(`${base}/deals`) ? 'active' : ''}`}>
+            Deals
+          </Link>
+          <Link href={`${base}/valuations`} className={`mga-nav-link ${pathname.startsWith(`${base}/valuations`) ? 'active' : ''}`}>
+            Valuations
+          </Link>
+          <Link href={`${base}/team`} className={`mga-nav-link ${pathname.startsWith(`${base}/team`) ? 'active' : ''}`}>
             Team
           </Link>
         </div>
       </div>
-
       <div className="mga-nav-right">
         <span className="mga-nav-user">{userEmail}</span>
         <button onClick={handleSignOut} className="mga-nav-signout">
