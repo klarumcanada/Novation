@@ -32,13 +32,38 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data } = await supabase
+  const { data: valuation } = await supabase
     .from('book_valuations')
     .select('*')
     .eq('advisor_id', user.id)
     .maybeSingle()
 
-  return NextResponse.json(data ?? null)
+  if (!valuation) return NextResponse.json(null)
+
+  // Enrich with advisor + MGA name
+  const { data: advisor } = await supabase
+    .from('advisors')
+    .select('full_name, province, years_in_practice, mga_id')
+    .eq('id', user.id)
+    .single()
+
+  let mga_name = null
+  if (advisor?.mga_id) {
+    const { data: mga } = await supabase
+      .from('mgas')
+      .select('name')
+      .eq('id', advisor.mga_id)
+      .single()
+    mga_name = mga?.name ?? null
+  }
+
+  return NextResponse.json({
+    ...valuation,
+    advisor_name: advisor?.full_name ?? null,
+    advisor_province: advisor?.province ?? null,
+    advisor_years: advisor?.years_in_practice ?? null,
+    mga_name,
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -50,7 +75,6 @@ export async function POST(request: NextRequest) {
 
   const { deal_id } = await request.json()
 
-  // If deal_id provided, verify advisor is the seller
   if (deal_id) {
     const { data: deal } = await supabase
       .from('deals')
