@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import NovationNav from '@/components/NovationNav'
@@ -42,12 +42,14 @@ export default function InboxPage() {
 
   const [threads, setThreads] = useState<Thread[]>([])
   const [userId, setUserId] = useState<string | null>(null)
+  const userIdRef = useRef<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'inbox' | 'sent'>('inbox')
 
   const loadThreads = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
+    userIdRef.current = user.id
     setUserId(user.id)
     const res = await fetch('/api/messages', { cache: 'no-store' })
     const data = await res.json()
@@ -59,15 +61,15 @@ export default function InboxPage() {
     loadThreads()
   }, [])
 
-  // Re-fetch when tab regains focus (e.g. returning from thread view)
   useEffect(() => {
     const onFocus = () => loadThreads()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [loadThreads])
 
-  const inbox = threads.filter(t => t.to.id === userId)
-  const sent = threads.filter(t => t.from.id === userId)
+  const uid = userIdRef.current ?? userId
+  const inbox = threads.filter(t => t.to.id === uid)
+  const sent = threads.filter(t => t.from.id === uid)
   const unreadCount = inbox.filter(t => t.is_unread).length
   const visible = tab === 'inbox' ? inbox : sent
 
