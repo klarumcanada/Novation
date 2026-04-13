@@ -3,19 +3,43 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import { useEffect, useState } from 'react'
 
-type Props = {
-  unreadCount?: number
-}
-
-export default function NovationNav({ unreadCount = 0 }: Props) {
+export default function NovationNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  useEffect(() => {
+    async function fetchUnread() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Unread root messages
+      const { count: rootUnread } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('to_id', user.id)
+        .is('parent_id', null)
+        .is('read_at', null)
+
+      // Unread replies sent to me
+      const { count: replyUnread } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('to_id', user.id)
+        .not('parent_id', 'is', null)
+        .is('read_at', null)
+
+      setUnreadCount((rootUnread ?? 0) + (replyUnread ?? 0))
+    }
+    fetchUnread()
+  }, [pathname])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -46,7 +70,7 @@ export default function NovationNav({ unreadCount = 0 }: Props) {
         <Link href="/marketplace" className={`nov-nav-link ${pathname.startsWith('/marketplace') ? 'active' : ''}`}>
           Marketplace
         </Link>
-        <Link href="/inbox" className={`nov-nav-link ${pathname === '/inbox' ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Link href="/inbox" className={`nov-nav-link ${pathname === '/inbox' || pathname.startsWith('/inbox/') ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           Inbox
           {unreadCount > 0 && (
             <span style={{

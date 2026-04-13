@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import NovationNav from '@/components/NovationNav'
@@ -45,19 +45,26 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'inbox' | 'sent'>('inbox')
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
-      setUserId(user.id)
-
-      const res = await fetch('/api/messages')
-      const data = await res.json()
-      setThreads(Array.isArray(data) ? data : [])
-      setLoading(false)
-    }
-    load()
+  const loadThreads = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
+    setUserId(user.id)
+    const res = await fetch('/api/messages', { cache: 'no-store' })
+    const data = await res.json()
+    setThreads(Array.isArray(data) ? data : [])
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    loadThreads()
+  }, [])
+
+  // Re-fetch when tab regains focus (e.g. returning from thread view)
+  useEffect(() => {
+    const onFocus = () => loadThreads()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [loadThreads])
 
   const inbox = threads.filter(t => t.to.id === userId)
   const sent = threads.filter(t => t.from.id === userId)
@@ -79,16 +86,14 @@ export default function InboxPage() {
 
   return (
     <div style={{ background: BRAND.chalk, minHeight: '100vh', paddingBottom: '4rem' }}>
-      <NovationNav unreadCount={unreadCount} />
+      <NovationNav />
 
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
 
-        {/* Header */}
         <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: '26px', fontWeight: 600, color: BRAND.midnight, margin: '0 0 1.5rem 0' }}>
           Messages
         </h1>
 
-        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #E2E6F0', marginBottom: '1.5rem' }}>
           <button style={tabStyle(tab === 'inbox')} onClick={() => setTab('inbox')}>
             Inbox {unreadCount > 0 && (
@@ -106,7 +111,6 @@ export default function InboxPage() {
           </button>
         </div>
 
-        {/* Thread list */}
         {loading ? (
           <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#9CA3AF' }}>Loading…</p>
         ) : visible.length === 0 ? (
