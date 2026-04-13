@@ -47,14 +47,32 @@ function getInitials(fullName: string) {
   return '?'
 }
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  fontSize: '14px',
+  fontFamily: 'DM Sans, sans-serif',
+  border: '1px solid #E2E6F0',
+  borderRadius: '8px',
+  outline: 'none',
+  boxSizing: 'border-box',
+  color: '#1F2937',
+}
+
 export default function AdvisorDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [advisor, setAdvisor] = useState<Advisor | null>(null)
-  const [myIntent, setMyIntent] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [messageSent, setMessageSent] = useState(false)
+
+  // Message form state
+  const [showForm, setShowForm] = useState(false)
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [msgError, setMsgError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -65,7 +83,6 @@ export default function AdvisorDetailPage() {
       const detailData = await detailRes.json()
       const savesData = await savesRes.json()
       setAdvisor(detailData.advisor ?? null)
-      setMyIntent(detailData.myIntent ?? null)
       setSaved((savesData.saved ?? []).includes(id))
       setLoading(false)
     }
@@ -82,9 +99,29 @@ export default function AdvisorDetailPage() {
     setSaved(!saved)
   }
 
-  function handleMessage() {
-    setMessageSent(true)
-    setTimeout(() => setMessageSent(false), 3000)
+  async function handleSendMessage() {
+    if (!body.trim()) { setMsgError('Please enter a message.'); return }
+    setMsgError(null)
+    setSending(true)
+
+    const res = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to_id: id, subject, body }),
+    })
+
+    setSending(false)
+
+    if (!res.ok) {
+      const data = await res.json()
+      setMsgError(data.error ?? 'Failed to send.')
+      return
+    }
+
+    setSent(true)
+    setShowForm(false)
+    setBody('')
+    setSubject('')
   }
 
   if (loading) {
@@ -130,7 +167,6 @@ export default function AdvisorDetailPage() {
           <div style={{ borderLeft: `4px solid ${accentColor}`, paddingLeft: '16px', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                {/* Avatar */}
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: BRAND.ice, color: BRAND.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', flexShrink: 0, overflow: 'hidden' }}>
                   {advisor.avatar_url
                     ? <img src={advisor.avatar_url} alt={advisor.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
@@ -186,51 +222,109 @@ export default function AdvisorDetailPage() {
         {/* Details card */}
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '2rem', marginBottom: '1.5rem' }}>
           <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>Details</div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {advisor.specialties?.length > 0 && (
-              <DetailRow label="Specialties" value={advisor.specialties.join(', ')} />
-            )}
-            {advisor.carrier_affiliations?.length > 0 && (
-              <DetailRow label="Carriers" value={advisor.carrier_affiliations.join(', ')} />
-            )}
-            {isSeller && advisor.target_provinces?.length && (
-              <DetailRow label="Target Provinces" value={advisor.target_provinces.join(', ')} />
-            )}
-            {isSeller && advisor.target_cities?.length && (
-              <DetailRow label="Target Cities" value={advisor.target_cities.join(', ')} />
-            )}
+            {advisor.specialties?.length > 0 && <DetailRow label="Specialties" value={advisor.specialties.join(', ')} />}
+            {advisor.carrier_affiliations?.length > 0 && <DetailRow label="Carriers" value={advisor.carrier_affiliations.join(', ')} />}
+            {isSeller && advisor.target_provinces?.length && <DetailRow label="Target Provinces" value={advisor.target_provinces.join(', ')} />}
+            {isSeller && advisor.target_cities?.length && <DetailRow label="Target Cities" value={advisor.target_cities.join(', ')} />}
           </div>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button
-            onClick={toggleSave}
-            style={{
-              padding: '10px 20px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', fontWeight: 500,
-              borderRadius: '8px', cursor: 'pointer', transition: 'all .15s',
-              background: saved ? BRAND.ice : 'white',
-              color: saved ? BRAND.navy : BRAND.midnight,
-              border: saved ? `1.5px solid ${BRAND.electric}` : '1.5px solid #E5E7EB',
-            }}
-          >
-            {saved ? '✓ Saved' : 'Save profile'}
-          </button>
+        {/* Message form */}
+        {showForm && (
+          <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${BRAND.electric}`, padding: '1.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 600, color: BRAND.midnight, marginBottom: '1.25rem' }}>
+              Message {advisor.full_name}
+            </div>
 
-          <button
-            onClick={handleMessage}
-            style={{
-              padding: '10px 24px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
-              borderRadius: '8px', cursor: 'pointer', transition: 'all .15s',
-              background: messageSent ? '#D1FAE5' : BRAND.midnight,
-              color: messageSent ? '#065F46' : 'white',
-              border: 'none',
-            }}
-          >
-            {messageSent ? '✓ Coming soon' : 'Send message'}
-          </button>
-        </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#6B7280', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>
+                Subject <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                placeholder="e.g. Interested in your book"
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#6B7280', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>
+                Message <span style={{ color: '#DC2626' }}>*</span>
+              </label>
+              <textarea
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                rows={4}
+                placeholder="Introduce yourself and explain your interest…"
+                style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+              />
+            </div>
+
+            {msgError && (
+              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#DC2626', margin: '0 0 1rem' }}>{msgError}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleSendMessage}
+                disabled={sending}
+                style={{
+                  padding: '10px 20px', fontSize: '13px', fontWeight: 600,
+                  fontFamily: 'DM Sans, sans-serif', borderRadius: '8px',
+                  border: 'none', background: BRAND.midnight, color: 'white',
+                  cursor: sending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {sending ? 'Sending…' : 'Send →'}
+              </button>
+              <button
+                onClick={() => { setShowForm(false); setMsgError(null) }}
+                style={{
+                  padding: '10px 20px', fontSize: '13px',
+                  fontFamily: 'DM Sans, sans-serif', borderRadius: '8px',
+                  border: '1.5px solid #E5E7EB', background: 'white',
+                  color: '#6B7280', cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+{/* Actions */}
+<div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+  <button
+    onClick={toggleSave}
+    style={{
+      padding: '10px 20px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', fontWeight: 500,
+      borderRadius: '8px', cursor: 'pointer', transition: 'all .15s',
+      background: saved ? BRAND.ice : 'white',
+      color: saved ? BRAND.navy : BRAND.midnight,
+      border: saved ? `1.5px solid ${BRAND.electric}` : '1.5px solid #E5E7EB',
+    }}
+  >
+    {saved ? '✓ Saved' : 'Save profile'}
+  </button>
+
+  <button
+    onClick={() => { if (!sent) setShowForm(f => !f) }}
+    disabled={sent}
+    style={{
+      padding: '10px 24px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
+      borderRadius: '8px', transition: 'all .15s',
+      background: sent ? '#E5E7EB' : showForm ? 'white' : BRAND.midnight,
+      color: sent ? '#9CA3AF' : showForm ? BRAND.midnight : 'white',
+      border: showForm && !sent ? `1.5px solid ${BRAND.electric}` : 'none',
+      cursor: sent ? 'default' : 'pointer',
+    }}
+  >
+    {sent ? '✓ Message sent' : showForm ? 'Cancel' : 'Send message'}
+  </button>
+</div>
 
       </div>
     </div>

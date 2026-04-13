@@ -48,6 +48,9 @@ export default function NovationNav() {
         <Link href="/profile" className={`nov-nav-link ${pathname.startsWith('/profile') ? 'active' : ''}`}>
           Profile
         </Link>
+        <Link href="/deals" className={`nov-nav-link ${pathname.startsWith('/deals') ? 'active' : ''}`}>
+  Deals
+</Link>
         <button onClick={handleSignOut} className="nov-nav-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           Sign out
         </button>
