@@ -13,14 +13,27 @@ const BRAND = {
   voltage: '#E8C547',
 }
 
-const STAGES = ['interested', 'loi', 'due_diligence', 'closed'] as const
+const STAGES = [
+  'interested',
+  'valuation_pending',
+  'valuation_shared',
+  'loi',
+  'due_diligence',
+  'client_communication',
+  'book_transfer',
+  'closed',
+] as const
 type Stage = typeof STAGES[number]
 
 const STAGE_LABELS: Record<Stage, string> = {
-  interested: 'Interested',
-  loi: 'Letter of Intent',
-  due_diligence: 'Due Diligence',
-  closed: 'Closed',
+  interested:             'Interested',
+  valuation_pending:      'Valuation Pending',
+  valuation_shared:       'Valuation Shared',
+  loi:                    'Letter of Intent',
+  due_diligence:          'Due Diligence',
+  client_communication:   'Client Communication',
+  book_transfer:          'Book Transfer',
+  closed:                 'Closed',
 }
 
 type Valuation = {
@@ -55,6 +68,7 @@ type Deal = {
   seller: { id: string; full_name: string }
   buyer: { id: string; full_name: string }
   is_seller: boolean
+  is_initiator: boolean
   my_confirmed: boolean
   their_confirmed: boolean
   thread_id: string | null
@@ -92,57 +106,64 @@ function SourceBadge({ source }: { source: 'novation' | 'manual' | 'uploaded' })
 function StageTrack({ status }: { status: Stage }) {
   const current = STAGES.indexOf(status)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, margin: '1rem 0' }}>
-      {STAGES.map((stage, i) => {
-        const done = i < current
-        const active = i === current
-        return (
-          <div key={stage} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-              <div style={{
-                width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '11px', fontWeight: 700, fontFamily: 'DM Sans, sans-serif',
-                background: done ? BRAND.electric : active ? BRAND.midnight : '#E5E7EB',
-                color: done || active ? 'white' : '#9CA3AF',
-                border: active ? `2px solid ${BRAND.electric}` : 'none',
-                transition: 'all .2s',
-              }}>
-                {done ? '✓' : i + 1}
+    <div style={{ overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, margin: '1rem 0', minWidth: '600px' }}>
+        {STAGES.map((stage, i) => {
+          const done = i < current
+          const active = i === current
+          return (
+            <div key={stage} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                <div style={{
+                  width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '10px', fontWeight: 700, fontFamily: 'DM Sans, sans-serif',
+                  background: done ? BRAND.electric : active ? BRAND.midnight : '#E5E7EB',
+                  color: done || active ? 'white' : '#9CA3AF',
+                  border: active ? `2px solid ${BRAND.electric}` : 'none',
+                  transition: 'all .2s',
+                }}>
+                  {done ? '✓' : i + 1}
+                </div>
+                <span style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: '9px', marginTop: '4px',
+                  color: active ? BRAND.midnight : done ? BRAND.electric : '#9CA3AF',
+                  fontWeight: active ? 600 : 400, textAlign: 'center', whiteSpace: 'nowrap',
+                }}>
+                  {STAGE_LABELS[stage]}
+                </span>
               </div>
-              <span style={{
-                fontFamily: 'DM Sans, sans-serif', fontSize: '10px', marginTop: '4px',
-                color: active ? BRAND.midnight : done ? BRAND.electric : '#9CA3AF',
-                fontWeight: active ? 600 : 400, textAlign: 'center', whiteSpace: 'nowrap',
-              }}>
-                {STAGE_LABELS[stage]}
-              </span>
+              {i < STAGES.length - 1 && (
+                <div style={{
+                  height: '2px', flex: 1, marginBottom: '18px',
+                  background: done ? BRAND.electric : '#E5E7EB',
+                  transition: 'all .2s',
+                }} />
+              )}
             </div>
-            {i < STAGES.length - 1 && (
-              <div style={{
-                height: '2px', flex: 1, marginBottom: '18px',
-                background: done ? BRAND.electric : '#E5E7EB',
-                transition: 'all .2s',
-              }} />
-            )}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
 
-function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstName: string }) {
+function ValuationCard({
+  dealId,
+  buyerFirstName,
+  onShared,
+}: {
+  dealId: string
+  buyerFirstName: string
+  onShared: () => void
+}) {
   const router = useRouter()
   const [valuation, setValuation] = useState<Valuation | null>(null)
   const [loadingInit, setLoadingInit] = useState(true)
   const [loading, setLoading] = useState(false)
   const [path, setPath] = useState<ValuationPath>(null)
+  const [sharing, setSharing] = useState(false)
 
-  // Novation
-  const [showConsent, setShowConsent] = useState(false)
-
-  // Manual
   const [manualLow, setManualLow] = useState('')
   const [manualHigh, setManualHigh] = useState('')
   const [manualMethod, setManualMethod] = useState('')
@@ -151,7 +172,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
   const [manualEffective, setManualEffective] = useState('')
   const [manualError, setManualError] = useState('')
 
-  // Upload
   const [file, setFile] = useState<File | null>(null)
   const [uploadLow, setUploadLow] = useState('')
   const [uploadHigh, setUploadHigh] = useState('')
@@ -160,8 +180,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
   const [uploadError, setUploadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Toggles
-  const [toggling, setToggling] = useState(false)
   const [togglingConsent, setTogglingConsent] = useState(false)
 
   useEffect(() => {
@@ -173,7 +191,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
 
   async function runValuation() {
     setLoading(true)
-    setShowConsent(false)
     const res = await fetch('/api/valuations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,10 +213,8 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        deal_id: dealId,
-        source: 'manual',
-        low_value: low,
-        high_value: high,
+        deal_id: dealId, source: 'manual',
+        low_value: low, high_value: high,
         valuation_method: manualMethod || null,
         prepared_by: manualPreparedBy || null,
         notes: manualNotes || null,
@@ -218,31 +233,21 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
     if (file.type !== 'application/pdf') { setUploadError('PDF files only.'); return }
     if (file.size > 10 * 1024 * 1024) { setUploadError('File must be under 10 MB.'); return }
     setLoading(true)
-
     const signRes = await fetch('/api/valuations/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ deal_id: dealId, filename: file.name }),
     })
     const { upload_url, document_url } = await signRes.json()
-
-    await fetch(upload_url, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': 'application/pdf' },
-    })
-
+    await fetch(upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/pdf' } })
     const low = uploadLow ? parseFloat(uploadLow.replace(/[,$]/g, '')) : null
     const high = uploadHigh ? parseFloat(uploadHigh.replace(/[,$]/g, '')) : null
-
     const res = await fetch('/api/valuations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        deal_id: dealId,
-        source: 'uploaded',
-        low_value: low,
-        high_value: high,
+        deal_id: dealId, source: 'uploaded',
+        low_value: low, high_value: high,
         prepared_by: uploadPreparedBy || null,
         effective_date: uploadEffective || null,
         document_url,
@@ -254,17 +259,20 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
     setPath(null)
   }
 
-  async function toggleShare() {
+  async function shareAndAdvance() {
     if (!valuation) return
-    setToggling(true)
-    const res = await fetch('/api/valuations', {
+    setSharing(true)
+    await fetch('/api/valuations', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ valuation_id: valuation.id, shared_with_buyer: !valuation.shared_with_buyer }),
+      body: JSON.stringify({ valuation_id: valuation.id, shared_with_buyer: true }),
     })
-    const data = await res.json()
-    if (res.ok) setValuation(data.valuation)
-    setToggling(false)
+    const res = await fetch(`/api/deals/${dealId}/share-valuation`, { method: 'POST' })
+    if (res.ok) {
+      setValuation(v => v ? { ...v, shared_with_buyer: true } : v)
+      onShared()
+    }
+    setSharing(false)
   }
 
   async function toggleMgaConsent() {
@@ -298,9 +306,8 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
         </p>
 
       ) : valuation ? (
-        /* ── Result view ── */
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                 {valuation.low_value && valuation.high_value ? (
@@ -325,23 +332,9 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
                 </div>
               )}
             </div>
-
-            <button
-              onClick={toggleShare}
-              disabled={toggling}
-              style={{
-                padding: '7px 14px', fontSize: '12px', fontWeight: 600,
-                fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', cursor: 'pointer',
-                border: `1.5px solid ${valuation.shared_with_buyer ? '#6EE7B7' : '#E2E6F0'}`,
-                background: valuation.shared_with_buyer ? '#D1FAE5' : 'white',
-                color: valuation.shared_with_buyer ? '#065F46' : '#6B7280',
-              }}
-            >
-              {toggling ? '…' : valuation.shared_with_buyer ? `✓ Shared with ${buyerFirstName}` : `Share with ${buyerFirstName}`}
-            </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             {valuation.source === 'novation' && (
               <button
                 onClick={() => router.push('/valuation/report')}
@@ -360,19 +353,20 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
                 View uploaded report →
               </a>
             )}
-            <button
-              onClick={() => { setValuation(null); setPath(null) }}
-              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: '1.5px solid #E2E6F0', background: 'white', color: '#9CA3AF', cursor: 'pointer' }}
-            >
-              Replace
-            </button>
+            {!valuation.shared_with_buyer && (
+              <button
+                onClick={() => { setValuation(null); setPath(null) }}
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: '1.5px solid #E2E6F0', background: 'white', color: '#9CA3AF', cursor: 'pointer' }}
+              >
+                Replace
+              </button>
+            )}
           </div>
 
-          {/* MGA doc consent toggle — uploaded only */}
           {valuation.source === 'uploaded' && (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 12px', borderRadius: '8px', marginBottom: '10px',
+              padding: '10px 12px', borderRadius: '8px', marginBottom: '12px',
               background: valuation.mga_doc_consent ? '#F0FDF4' : '#FAFAFA',
               border: `1px solid ${valuation.mga_doc_consent ? '#BBF7D0' : '#E5E7EB'}`,
             }}>
@@ -402,7 +396,32 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
             </div>
           )}
 
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', color: '#9CA3AF' }}>
+          {!valuation.shared_with_buyer ? (
+            <div style={{
+              background: BRAND.ice, border: `1.5px solid ${BRAND.electric}`,
+              borderRadius: '10px', padding: '1rem',
+            }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 600, color: BRAND.midnight, marginBottom: '4px' }}>
+                Ready to share with {buyerFirstName}?
+              </div>
+              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#374151', lineHeight: 1.65, margin: '0 0 12px' }}>
+                Sharing your valuation will notify {buyerFirstName} and move this deal to LOI review. You won't be able to replace the valuation after sharing.
+              </p>
+              <button
+                onClick={shareAndAdvance}
+                disabled={sharing}
+                style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: BRAND.midnight, color: 'white', cursor: sharing ? 'not-allowed' : 'pointer' }}
+              >
+                {sharing ? 'Sharing…' : `Share with ${buyerFirstName} and move to LOI review →`}
+              </button>
+            </div>
+          ) : (
+            <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#065F46', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '8px', padding: '8px 12px', display: 'inline-block' }}>
+              ✓ Shared with {buyerFirstName} · Waiting for them to confirm LOI
+            </div>
+          )}
+
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', color: '#9CA3AF', marginTop: '10px' }}>
             {valuation.source === 'novation' ? 'Indicative only · ' : ''}
             {valuation.notes ? `${valuation.notes} · ` : ''}
             Added {new Date(valuation.calculated_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -410,7 +429,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
         </div>
 
       ) : (
-        /* ── Path selector + panels ── */
         <div>
           <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#374151', margin: '0 0 10px', lineHeight: 1.65 }}>
             How would you like to establish your book value?
@@ -438,7 +456,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
             ))}
           </div>
 
-          {/* Novation consent panel */}
           {path === 'novation' && (
             <div style={{ background: 'white', border: `1.5px solid ${BRAND.electric}`, borderRadius: '10px', padding: '1rem', marginTop: '12px' }}>
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 600, color: BRAND.midnight, marginBottom: '6px' }}>Authorize data share</div>
@@ -456,7 +473,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
             </div>
           )}
 
-          {/* Manual entry panel */}
           {path === 'manual' && (
             <div style={{ background: 'white', border: '1.5px solid #E2E6F0', borderRadius: '10px', padding: '1rem', marginTop: '12px' }}>
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 600, color: BRAND.midnight, marginBottom: '12px' }}>Manual valuation entry</div>
@@ -473,9 +489,9 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
                 ))}
               </div>
               {[
-                { label: 'Valuation method', val: manualMethod, set: setManualMethod, placeholder: 'e.g. Revenue multiple, EBITDA', type: 'text' },
-                { label: 'Prepared by',      val: manualPreparedBy, set: setManualPreparedBy, placeholder: 'e.g. Your name or firm', type: 'text' },
-                { label: 'Effective date',   val: manualEffective, set: setManualEffective, placeholder: '', type: 'date' },
+                { label: 'Valuation method', val: manualMethod,     set: setManualMethod,     placeholder: 'e.g. Revenue multiple, EBITDA', type: 'text' },
+                { label: 'Prepared by',      val: manualPreparedBy, set: setManualPreparedBy, placeholder: 'e.g. Your name or firm',        type: 'text' },
+                { label: 'Effective date',   val: manualEffective,  set: setManualEffective,  placeholder: '',                              type: 'date' },
               ].map(f => (
                 <div key={f.label} style={{ marginBottom: '10px' }}>
                   <label style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 600, color: '#6B7280', display: 'block', marginBottom: '4px' }}>{f.label}</label>
@@ -500,7 +516,6 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
             </div>
           )}
 
-          {/* Upload panel */}
           {path === 'uploaded' && (
             <div style={{ background: 'white', border: '1.5px solid #E2E6F0', borderRadius: '10px', padding: '1rem', marginTop: '12px' }}>
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 600, color: BRAND.midnight, marginBottom: '12px' }}>Upload valuation report</div>
@@ -542,8 +557,8 @@ function ValuationCard({ dealId, buyerFirstName }: { dealId: string; buyerFirstN
                 ))}
               </div>
               {[
-                { label: 'Prepared by',  val: uploadPreparedBy, set: setUploadPreparedBy, placeholder: 'e.g. Firm name', type: 'text' },
-                { label: 'Report date',  val: uploadEffective,  set: setUploadEffective,  placeholder: '', type: 'date' },
+                { label: 'Prepared by', val: uploadPreparedBy, set: setUploadPreparedBy, placeholder: 'e.g. Firm name', type: 'text' },
+                { label: 'Report date', val: uploadEffective,  set: setUploadEffective,  placeholder: '', type: 'date' },
               ].map(f => (
                 <div key={f.label} style={{ marginBottom: '10px' }}>
                   <label style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 600, color: '#6B7280', display: 'block', marginBottom: '4px' }}>{f.label}</label>
@@ -610,9 +625,95 @@ export default function DealsPage() {
     }
   }
 
-  const nextLabel = (status: Stage) => {
-    const next = STAGES[STAGES.indexOf(status) + 1]
-    return next ? `Move to ${STAGE_LABELS[next]}` : null
+  function handleValuationShared(dealId: string) {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status: 'valuation_shared' } : d))
+  }
+
+  function renderActions(deal: Deal) {
+    const other = deal.is_seller ? deal.buyer : deal.seller
+    const otherFirst = other.full_name.split(' ')[0]
+
+    if (deal.status === 'interested') {
+      if (deal.is_initiator) {
+        return (
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#9CA3AF', margin: 0 }}>
+            Waiting for {otherFirst} to confirm interest…
+          </p>
+        )
+      }
+      return (
+        <button
+          onClick={() => handleConfirm(deal.id)}
+          disabled={confirming === deal.id}
+          style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: BRAND.midnight, color: 'white', cursor: confirming === deal.id ? 'not-allowed' : 'pointer' }}
+        >
+          {confirming === deal.id ? 'Confirming…' : 'Confirm interest'}
+        </button>
+      )
+    }
+
+    if (deal.status === 'valuation_pending') {
+      if (!deal.is_seller) {
+        return (
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#9CA3AF', margin: 0 }}>
+            Waiting for {otherFirst} to complete their valuation…
+          </p>
+        )
+      }
+      return null // ValuationCard below handles seller UI
+    }
+
+    if (deal.status === 'valuation_shared') {
+      if (deal.is_seller) {
+        return (
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#9CA3AF', margin: 0 }}>
+            Valuation shared · Waiting for {otherFirst} to confirm LOI…
+          </p>
+        )
+      }
+      return (
+        <button
+          onClick={() => handleConfirm(deal.id)}
+          disabled={confirming === deal.id}
+          style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: BRAND.midnight, color: 'white', cursor: confirming === deal.id ? 'not-allowed' : 'pointer' }}
+        >
+          {confirming === deal.id ? 'Confirming…' : 'Review valuation and move to LOI →'}
+        </button>
+      )
+    }
+
+    if (['loi', 'due_diligence', 'client_communication', 'book_transfer'].includes(deal.status)) {
+      const NEXT_LABELS: Partial<Record<Stage, string>> = {
+        loi:                  'Due Diligence',
+        due_diligence:        'Client Communication',
+        client_communication: 'Book Transfer',
+        book_transfer:        'Closed',
+      }
+      const nextLabel = NEXT_LABELS[deal.status]
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <ConfirmPill label="You" confirmed={deal.my_confirmed} />
+            <ConfirmPill label={otherFirst} confirmed={deal.their_confirmed} />
+          </div>
+          {!deal.my_confirmed ? (
+            <button
+              onClick={() => handleConfirm(deal.id)}
+              disabled={confirming === deal.id}
+              style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: BRAND.midnight, color: 'white', cursor: confirming === deal.id ? 'not-allowed' : 'pointer', alignSelf: 'flex-start' }}
+            >
+              {confirming === deal.id ? 'Confirming…' : `Confirm: Move to ${nextLabel}`}
+            </button>
+          ) : !deal.their_confirmed ? (
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: BRAND.electric, margin: 0 }}>
+              ✓ Waiting for {otherFirst} to confirm
+            </p>
+          ) : null}
+        </div>
+      )
+    }
+
+    return null
   }
 
   return (
@@ -636,12 +737,10 @@ export default function DealsPage() {
             {deals.map(deal => {
               const other = deal.is_seller ? deal.buyer : deal.seller
               const isClosed = deal.status === 'closed'
-              const canAdvance = !isClosed && nextLabel(deal.status)
-              const showValuation = deal.is_seller && STAGES.indexOf(deal.status) >= STAGES.indexOf('loi')
+              const showValuation = deal.is_seller && deal.status === 'valuation_pending'
 
               return (
                 <div key={deal.id} style={{ background: 'white', borderRadius: '12px', border: '1px solid #E2E6F0', overflow: 'hidden' }}>
-                  {/* Header */}
                   <div style={{ borderLeft: `4px solid ${BRAND.electric}`, padding: '1.25rem 1.5rem', borderBottom: '1px solid #F3F4F6' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
@@ -663,60 +762,34 @@ export default function DealsPage() {
                     </div>
                   </div>
 
-                  {/* Stage track */}
                   <div style={{ padding: '0 1.5rem' }}>
                     <StageTrack status={deal.status} />
                   </div>
 
-                  {/* Actions */}
                   {!isClosed && (
                     <div style={{ padding: '0 1.5rem 1.5rem' }}>
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                        <ConfirmPill label="You" confirmed={deal.my_confirmed} />
-                        <ConfirmPill label={other.full_name.split(' ')[0]} confirmed={deal.their_confirmed} />
-                      </div>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        {canAdvance && !deal.my_confirmed && (
-                          <button
-                            onClick={() => handleConfirm(deal.id)}
-                            disabled={confirming === deal.id}
-                            style={{
-                              padding: '9px 18px', fontSize: '13px', fontWeight: 600,
-                              fontFamily: 'DM Sans, sans-serif', borderRadius: '8px',
-                              border: 'none', background: BRAND.midnight, color: 'white',
-                              cursor: confirming === deal.id ? 'not-allowed' : 'pointer',
-                            }}
-                          >
-                            {confirming === deal.id ? 'Confirming…' : `Confirm: ${nextLabel(deal.status)}`}
-                          </button>
-                        )}
-                        {deal.my_confirmed && !deal.their_confirmed && (
-                          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: BRAND.electric, alignSelf: 'center', margin: 0 }}>
-                            ✓ Waiting for {other.full_name.split(' ')[0]} to confirm
-                          </p>
-                        )}
-                        {deal.thread_id && (
-                          <button
-                            onClick={() => router.push(`/inbox/${deal.thread_id}`)}
-                            style={{
-                              padding: '9px 18px', fontSize: '13px', fontWeight: 500,
-                              fontFamily: 'DM Sans, sans-serif', borderRadius: '8px',
-                              border: '1.5px solid #E2E6F0', background: 'white', color: '#6B7280',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            View thread →
-                          </button>
-                        )}
-                      </div>
+                      {renderActions(deal)}
+                      {deal.thread_id && (
+                        <button
+                          onClick={() => router.push(`/inbox/${deal.thread_id}`)}
+                          style={{
+                            marginTop: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 500,
+                            fontFamily: 'DM Sans, sans-serif', borderRadius: '8px',
+                            border: '1.5px solid #E2E6F0', background: 'white', color: '#6B7280',
+                            cursor: 'pointer', display: 'block',
+                          }}
+                        >
+                          View thread →
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  {/* Book Value */}
                   {showValuation && (
                     <ValuationCard
                       dealId={deal.id}
                       buyerFirstName={other.full_name.split(' ')[0]}
+                      onShared={() => handleValuationShared(deal.id)}
                     />
                   )}
 
