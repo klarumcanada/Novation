@@ -385,10 +385,13 @@ export default function LOIPage() {
     </div>
   )
 
-  const isSeller = deal.seller_id === currentUserId
-  const isBuyer = deal.buyer_id === currentUserId
+  // Supabase drops seller_id/buyer_id when aliased as join targets — compare via nested object
+  const sellerObj = Array.isArray(deal.seller) ? deal.seller[0] : deal.seller
+  const buyerObj  = Array.isArray(deal.buyer)  ? deal.buyer[0]  : deal.buyer
+  const isSeller = sellerObj?.id === currentUserId
+  const isBuyer  = buyerObj?.id  === currentUserId
   const today = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
-  const loiText = deal.loi_text || cannedTemplate(deal.seller?.full_name ?? 'Seller', deal.buyer?.full_name ?? 'Buyer', today)
+  const loiText = deal.loi_text || cannedTemplate(sellerObj?.full_name ?? 'Seller', buyerObj?.full_name ?? 'Buyer', today)
   const bothSignedNow = deal.loi_seller_signed && deal.loi_buyer_signed
 
   const startEdit = () => {
@@ -436,7 +439,7 @@ export default function LOIPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `LOI-${deal.seller?.full_name?.replace(/\s+/g, '-')}-${deal.buyer?.full_name?.replace(/\s+/g, '-')}.pdf`
+    a.download = `LOI-${sellerObj?.full_name?.replace(/\s+/g, '-')}-${buyerObj?.full_name?.replace(/\s+/g, '-')}.pdf`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -462,8 +465,8 @@ export default function LOIPage() {
         {/* Parties */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'Seller', name: deal.seller?.full_name },
-            { label: 'Buyer', name: deal.buyer?.full_name },
+            { label: 'Seller', name: sellerObj?.full_name },
+            { label: 'Buyer', name: buyerObj?.full_name },
           ].map(({ label, name }) => (
             <div key={label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 18px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: BRAND.stepNum, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
@@ -584,7 +587,7 @@ export default function LOIPage() {
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <SignatureBlock
                 label="Seller"
-                name={deal.seller?.full_name ?? ''}
+                name={sellerObj?.full_name ?? ''}
                 isMe={isSeller}
                 signed={deal.loi_seller_signed}
                 signedAt={deal.loi_seller_signed_at}
@@ -594,7 +597,7 @@ export default function LOIPage() {
               />
               <SignatureBlock
                 label="Buyer"
-                name={deal.buyer?.full_name ?? ''}
+                name={buyerObj?.full_name ?? ''}
                 isMe={isBuyer}
                 signed={deal.loi_buyer_signed}
                 signedAt={deal.loi_buyer_signed_at}
