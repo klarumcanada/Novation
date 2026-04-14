@@ -40,7 +40,6 @@ export async function GET() {
 
   if (!valuation) return NextResponse.json(null)
 
-  // Enrich with advisor + MGA name
   const { data: advisor } = await supabase
     .from('advisors')
     .select('full_name, province, years_in_practice, mga_id')
@@ -73,8 +72,70 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { deal_id } = await request.json()
+  const body = await request.json()
+  const { deal_id, source = 'novation' } = body
 
+  // ── Manual entry ───────────────────────────────────────────────
+  if (source === 'manual') {
+    const payload = {
+      advisor_id: user.id,
+      deal_id: deal_id ?? null,
+      source: 'manual',
+      status: 'complete',
+      low_value: body.low_value,
+      high_value: body.high_value,
+      valuation_method: body.valuation_method ?? null,
+      prepared_by: body.prepared_by ?? null,
+      notes: body.notes ?? null,
+      effective_date: body.effective_date ?? null,
+      document_url: null,
+      shared_with_buyer: false,
+      mga_doc_consent: false,
+      calculated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data: valuation, error } = await supabase
+      .from('book_valuations')
+      .upsert(payload, { onConflict: 'advisor_id' })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ valuation })
+  }
+
+  // ── Uploaded report ────────────────────────────────────────────
+  if (source === 'uploaded') {
+    const payload = {
+      advisor_id: user.id,
+      deal_id: deal_id ?? null,
+      source: 'uploaded',
+      status: 'complete',
+      low_value: body.low_value ?? null,
+      high_value: body.high_value ?? null,
+      valuation_method: null,
+      prepared_by: body.prepared_by ?? null,
+      notes: null,
+      effective_date: body.effective_date ?? null,
+      document_url: body.document_url ?? null,
+      shared_with_buyer: false,
+      mga_doc_consent: false,
+      calculated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data: valuation, error } = await supabase
+      .from('book_valuations')
+      .upsert(payload, { onConflict: 'advisor_id' })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ valuation })
+  }
+
+  // ── Novation calculation ───────────────────────────────────────
   if (deal_id) {
     const { data: deal } = await supabase
       .from('deals')
@@ -144,6 +205,7 @@ export async function POST(request: NextRequest) {
   const payload = {
     advisor_id: user.id,
     deal_id: deal_id ?? null,
+    source: 'novation',
     status: 'complete',
     low_value: totalLow,
     high_value: totalHigh,
@@ -152,8 +214,14 @@ export async function POST(request: NextRequest) {
     transition_factor: transitionFactor,
     total_policies: totalPolicies,
     active_policies: activePolicies,
-    calculated_at: new Date().toISOString(),
+    valuation_method: null,
+    prepared_by: null,
+    notes: null,
+    effective_date: null,
+    document_url: null,
     shared_with_buyer: false,
+    mga_doc_consent: false,
+    calculated_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
@@ -174,11 +242,15 @@ export async function PATCH(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { valuation_id, shared_with_buyer } = await request.json()
+  const { valuation_id, shared_with_buyer, mga_doc_consent } = await request.json()
+
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (shared_with_buyer !== undefined) updateData.shared_with_buyer = shared_with_buyer
+  if (mga_doc_consent   !== undefined) updateData.mga_doc_consent   = mga_doc_consent
 
   const { data, error } = await supabase
     .from('book_valuations')
-    .update({ shared_with_buyer, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', valuation_id)
     .eq('advisor_id', user.id)
     .select()
