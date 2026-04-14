@@ -682,9 +682,54 @@ export default function DealsPage() {
       )
     }
 
-    if (['loi', 'due_diligence', 'client_communication', 'book_transfer'].includes(deal.status)) {
+    // ── LOI stage: both parties go into the LOI signing flow ──────────────────
+    if (deal.status === 'loi') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{
+            background: BRAND.ice,
+            border: `1.5px solid ${BRAND.electric}`,
+            borderRadius: '10px',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 600, color: BRAND.midnight, marginBottom: '2px' }}>
+                Letter of Intent ready to sign
+              </div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#374151' }}>
+                Review, edit if needed, and sign the LOI to proceed to due diligence.
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(`/deals/${deal.id}/loi`)}
+              style={{
+                padding: '9px 20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                fontFamily: 'DM Sans, sans-serif',
+                borderRadius: '8px',
+                border: 'none',
+                background: BRAND.midnight,
+                color: 'white',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              📄 Open LOI →
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    // ── Stages after LOI: generic mutual confirm flow ─────────────────────────
+    if (['due_diligence', 'client_communication', 'book_transfer'].includes(deal.status)) {
       const NEXT_LABELS: Partial<Record<Stage, string>> = {
-        loi:                  'Due Diligence',
         due_diligence:        'Client Communication',
         client_communication: 'Book Transfer',
         book_transfer:        'Closed',
