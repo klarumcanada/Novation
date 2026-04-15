@@ -33,7 +33,7 @@ const STAGE_COLORS: Record<string, { bg: string; color: string; border: string }
   client_communication: { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
   book_transfer:        { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
   closed:               { bg: '#D1FAE5', color: '#065F46', border: '#6EE7B7' },
-  canceled:             { bg: '#FEF2F2', color: '#991B1B', border: '#FECACA' },
+  canceled:             { bg: '#F3F4F6', color: '#9CA3AF', border: '#E5E7EB' },
 }
 
 function Avatar({ name }: { name: string }) {
@@ -103,7 +103,11 @@ export default function DealsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {deals.map(deal => {
+            {[...deals].sort((a, b) => {
+              if (a.status === 'canceled' && b.status !== 'canceled') return 1
+              if (b.status === 'canceled' && a.status !== 'canceled') return -1
+              return 0
+            }).map(deal => {
               const other = deal.is_seller ? deal.buyer : deal.seller
               const stageColor = STAGE_COLORS[deal.status] ?? STAGE_COLORS.interested
               const label = STAGE_LABELS[deal.status] ?? deal.status
@@ -155,12 +159,12 @@ export default function DealsPage() {
                   </div>
 
                   {/* Action buttons — stacked to the right of the card */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, width: '90px' }}>
                     <button
                       onClick={() => router.push(`/deals/${deal.id}`)}
                       style={{
                         flex: 1,
-                        padding: '0 20px',
+                        padding: '0',
                         border: 'none',
                         borderRadius: '8px',
                         background: BRAND.midnight,
@@ -170,6 +174,7 @@ export default function DealsPage() {
                         fontFamily: 'DM Sans, sans-serif',
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
+                        width: '100%',
                       }}
                     >
                       Open
@@ -180,7 +185,7 @@ export default function DealsPage() {
                         disabled={canceling === deal.id}
                         style={{
                           flex: 1,
-                          padding: '0 20px',
+                          padding: '0',
                           border: `1px solid ${BRAND.border}`,
                           borderRadius: '8px',
                           background: 'white',
@@ -191,6 +196,7 @@ export default function DealsPage() {
                           cursor: canceling === deal.id ? 'not-allowed' : 'pointer',
                           whiteSpace: 'nowrap',
                           opacity: canceling === deal.id ? 0.6 : 1,
+                          width: '100%',
                         }}
                       >
                         {canceling === deal.id ? '…' : 'Cancel'}
