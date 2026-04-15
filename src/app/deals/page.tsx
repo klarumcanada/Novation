@@ -105,9 +105,10 @@ export default function DealsPage() {
               const label = STAGE_LABELS[deal.status] ?? deal.status
 
               return (
-                <div
-                  key={deal.id}
-                  style={{
+                <div key={deal.id} style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+                  {/* Card */}
+                  <div style={{
+                    flex: 1,
                     background: 'white',
                     border: `1px solid ${BRAND.border}`,
                     borderRadius: '12px',
@@ -115,78 +116,83 @@ export default function DealsPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '14px',
-                  }}
-                >
-                  <Avatar name={other.full_name} />
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontFamily: 'DM Sans, sans-serif',
-                      fontSize: '15px', fontWeight: 600,
-                      color: BRAND.midnight, marginBottom: '3px',
-                    }}>
-                      {other.full_name}
-                    </div>
-                    <div style={{
-                      fontFamily: 'DM Sans, sans-serif',
-                      fontSize: '12px', color: '#9CA3AF',
-                    }}>
-                      Started: {new Date(deal.created_at).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  </div>
-
-                  <span style={{
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '11px', fontWeight: 600,
-                    padding: '4px 12px', borderRadius: '100px',
-                    background: stageColor.bg,
-                    color: stageColor.color,
-                    border: `1px solid ${stageColor.border}`,
-                    whiteSpace: 'nowrap',
+                    minWidth: 0,
                   }}>
-                    {label}
-                  </span>
+                    <Avatar name={other.full_name} />
 
-                  <button
-                    onClick={() => router.push(`/deals/${deal.id}`)}
-                    style={{
-                      padding: '8px 20px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      background: BRAND.electric,
-                      color: 'white',
-                      fontSize: '13px',
-                      fontWeight: 600,
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: 'DM Sans, sans-serif',
+                        fontSize: '15px', fontWeight: 600,
+                        color: BRAND.midnight, marginBottom: '3px',
+                      }}>
+                        {other.full_name}
+                      </div>
+                      <div style={{
+                        fontFamily: 'DM Sans, sans-serif',
+                        fontSize: '12px', color: '#9CA3AF',
+                      }}>
+                        Started: {new Date(deal.created_at).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+
+                    <span style={{
                       fontFamily: 'DM Sans, sans-serif',
-                      cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 600,
+                      padding: '4px 12px', borderRadius: '100px',
+                      background: stageColor.bg,
+                      color: stageColor.color,
+                      border: `1px solid ${stageColor.border}`,
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
-                    }}
-                  >
-                    Open
-                  </button>
-                  {deal.status !== 'canceled' && deal.status !== 'closed' && (
+                    }}>
+                      {label}
+                    </span>
+                  </div>
+
+                  {/* Action buttons — stacked to the right of the card */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
                     <button
-                      onClick={() => cancelDeal(deal.id)}
-                      disabled={canceling === deal.id}
+                      onClick={() => router.push(`/deals/${deal.id}`)}
                       style={{
-                        padding: '8px 16px',
-                        border: '1px solid #FECACA',
+                        flex: 1,
+                        padding: '0 20px',
+                        border: 'none',
                         borderRadius: '8px',
-                        background: 'white',
-                        color: '#DC2626',
+                        background: BRAND.midnight,
+                        color: 'white',
                         fontSize: '13px',
                         fontWeight: 600,
                         fontFamily: 'DM Sans, sans-serif',
-                        cursor: canceling === deal.id ? 'not-allowed' : 'pointer',
+                        cursor: 'pointer',
                         whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                        opacity: canceling === deal.id ? 0.6 : 1,
                       }}
                     >
-                      {canceling === deal.id ? '…' : 'Cancel'}
+                      Open
                     </button>
-                  )}
+                    {deal.status !== 'canceled' && deal.status !== 'closed' && (
+                      <button
+                        onClick={() => cancelDeal(deal.id)}
+                        disabled={canceling === deal.id}
+                        style={{
+                          flex: 1,
+                          padding: '0 20px',
+                          border: `1px solid ${BRAND.border}`,
+                          borderRadius: '8px',
+                          background: 'white',
+                          color: '#6B7280',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          fontFamily: 'DM Sans, sans-serif',
+                          cursor: canceling === deal.id ? 'not-allowed' : 'pointer',
+                          whiteSpace: 'nowrap',
+                          opacity: canceling === deal.id ? 0.6 : 1,
+                        }}
+                      >
+                        {canceling === deal.id ? '…' : 'Cancel'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
