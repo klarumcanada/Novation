@@ -113,7 +113,7 @@ export default function DealsPage() {
               const label = STAGE_LABELS[deal.status] ?? deal.status
 
               return (
-                <div key={deal.id} style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
+                <div key={deal.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   {/* Card */}
                   <div style={{
                     flex: 1,
@@ -159,11 +159,11 @@ export default function DealsPage() {
                   </div>
 
                   {/* Action buttons — stacked to the right of the card */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, width: '90px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, width: '90px', justifyContent: 'center' }}>
                     <button
                       onClick={() => router.push(`/deals/${deal.id}`)}
                       style={{
-                        flex: 1,
+                        height: '38px',
                         padding: '0',
                         border: 'none',
                         borderRadius: '8px',
@@ -184,7 +184,7 @@ export default function DealsPage() {
                         onClick={() => cancelDeal(deal.id)}
                         disabled={canceling === deal.id}
                         style={{
-                          flex: 1,
+                          height: '38px',
                           padding: '0',
                           border: `1px solid ${BRAND.border}`,
                           borderRadius: '8px',
