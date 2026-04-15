@@ -248,13 +248,13 @@ function ValuationTab({ deal }: { deal: any }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
         {valuation.source === 'novation' && (
           <button onClick={() => router.push('/valuation/report')}
-            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: `1.5px solid ${BRAND.electric}`, background: 'white', color: BRAND.electric, cursor: 'pointer' }}>
+            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', cursor: 'pointer' }}>
             View Full Report →
           </button>
         )}
         {valuation.source === 'uploaded' && valuation.document_url && (
           <a href={valuation.document_url} target="_blank" rel="noopener noreferrer"
-            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: `1.5px solid ${BRAND.electric}`, background: 'white', color: BRAND.electric, cursor: 'pointer', textDecoration: 'none' }}>
+            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', cursor: 'pointer', textDecoration: 'none' }}>
             View uploaded report →
           </a>
         )}
@@ -593,44 +593,30 @@ export default function DealDetailPage() {
             )}
           </div>
 
-          {/* Cancel deal */}
-          {deal.status !== 'canceled' && deal.status !== 'closed' && (
-            <div style={{ padding: '16px 24px', borderTop: `1px solid ${BRAND.border}` }}>
-              <button
-                onClick={cancelDeal}
-                disabled={canceling}
-                style={{
-                  padding: '9px 20px',
-                  border: '1px solid #FECACA',
-                  borderRadius: 8,
-                  background: 'white',
-                  color: '#DC2626',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'DM Sans, sans-serif',
-                  cursor: canceling ? 'not-allowed' : 'pointer',
-                  opacity: canceling ? 0.6 : 1,
-                }}
-              >
-                {canceling ? 'Canceling…' : 'Cancel Deal'}
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Thread link */}
-        {deal.thread_id && (
-          <button
-            onClick={() => router.push(`/inbox/${deal.thread_id}`)}
-            style={{
-              padding: '10px 20px', fontSize: 13, fontWeight: 500,
-              fontFamily: 'DM Sans, sans-serif', borderRadius: 8,
-              border: `1.5px solid ${BRAND.border}`, background: 'white',
-              color: '#6B7280', cursor: 'pointer',
-            }}
-          >
-            View message thread →
-          </button>
+        {/* Cancel deal — below card, right-aligned */}
+        {deal.status !== 'canceled' && deal.status !== 'closed' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+            <button
+              onClick={cancelDeal}
+              disabled={canceling}
+              style={{
+                padding: '9px 20px',
+                border: `1px solid ${BRAND.border}`,
+                borderRadius: 8,
+                background: 'white',
+                color: '#6B7280',
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: 'DM Sans, sans-serif',
+                cursor: canceling ? 'not-allowed' : 'pointer',
+                opacity: canceling ? 0.6 : 1,
+              }}
+            >
+              {canceling ? 'Canceling…' : 'Cancel Deal'}
+            </button>
+          </div>
         )}
       </div>
     </div>

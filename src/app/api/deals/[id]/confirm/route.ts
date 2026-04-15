@@ -44,7 +44,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: deal } = await supabase
     .from('deals')
-    .select('id, status, seller_id, buyer_id, initiator_id, seller_confirmed_next, buyer_confirmed_next')
+    .select('id, status, seller_id, buyer_id, initiator_id, seller_confirmed_next, buyer_confirmed_next, thread_id')
     .eq('id', id)
     .single()
 
@@ -73,6 +73,36 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    // Copy thread messages into deal notes
+    if (deal.thread_id) {
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('id, from_id, body, created_at')
+        .or(`id.eq.${deal.thread_id},parent_id.eq.${deal.thread_id}`)
+        .order('created_at', { ascending: true })
+
+      if (messages && messages.length > 0) {
+        const authorIds = [...new Set(messages.map((m: any) => m.from_id))]
+        const { data: advisors } = await supabase
+          .from('advisors')
+          .select('id, full_name')
+          .in('id', authorIds)
+        const nameMap = Object.fromEntries((advisors ?? []).map((a: any) => [a.id, a.full_name]))
+
+        const notes = messages.map((m: any) => ({
+          deal_id: id,
+          author_id: m.from_id,
+          author_name: nameMap[m.from_id] ?? 'Unknown',
+          author_role: m.from_id === deal.seller_id ? 'seller' : 'buyer',
+          body: m.body,
+          created_at: m.created_at,
+        }))
+
+        await supabase.from('deal_notes').insert(notes)
+      }
+    }
+
     return NextResponse.json({ deal: updated, advanced: true, new_status: 'valuation_pending' })
   }
 
