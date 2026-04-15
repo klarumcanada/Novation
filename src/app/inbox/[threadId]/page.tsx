@@ -165,7 +165,6 @@ export default function ThreadPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to_id: other.id,
-        subject: thread.subject,
         body: reply,
         parent_id: threadId,
       }),
@@ -188,7 +187,7 @@ export default function ThreadPage() {
 
     setReplies(prev => [...prev, {
       id: crypto.randomUUID(),
-      subject: thread.subject,
+      subject: null,
       body: reply,
       created_at: new Date().toISOString(),
       read_at: null,
@@ -251,9 +250,9 @@ export default function ThreadPage() {
           ← Inbox
         </button>
 
-        {/* Subject */}
+        {/* Conversation heading */}
         <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: '22px', fontWeight: 600, color: BRAND.midnight, margin: '0 0 2rem 0' }}>
-          {thread.subject ?? 'Message'}
+          {otherAdvisor?.full_name ?? (thread.from.id === userId ? thread.to.full_name : thread.from.full_name)}
         </h1>
 
         {/* Two-column layout */}

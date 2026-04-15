@@ -68,7 +68,6 @@ export default function AdvisorDetailPage() {
 
   // Message form state
   const [showForm, setShowForm] = useState(false)
-  const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -107,7 +106,7 @@ export default function AdvisorDetailPage() {
     const res = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to_id: id, subject, body }),
+      body: JSON.stringify({ to_id: id, body }),
     })
 
     setSending(false)
@@ -121,7 +120,6 @@ export default function AdvisorDetailPage() {
     setSent(true)
     setShowForm(false)
     setBody('')
-    setSubject('')
   }
 
   if (loading) {
@@ -235,19 +233,6 @@ export default function AdvisorDetailPage() {
           <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${BRAND.electric}`, padding: '1.5rem', marginBottom: '1.5rem' }}>
             <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 600, color: BRAND.midnight, marginBottom: '1.25rem' }}>
               Message {advisor.full_name}
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#6B7280', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>
-                Subject <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={e => setSubject(e.target.value)}
-                placeholder="e.g. Interested in your book"
-                style={inputStyle}
-              />
             </div>
 
             <div style={{ marginBottom: '1rem' }}>

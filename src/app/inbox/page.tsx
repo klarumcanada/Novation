@@ -151,12 +151,6 @@ export default function InboxPage() {
                     </span>
                   </div>
 
-                  {thread.subject && (
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '2px' }}>
-                      {thread.subject}
-                    </div>
-                  )}
-
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#9CA3AF' }}>
                       {thread.body.length > 80 ? thread.body.slice(0, 80) + '…' : thread.body}
