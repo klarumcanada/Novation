@@ -104,7 +104,8 @@ export default function DashboardPage() {
       }
 
       // Deduplicate by thread — keep most recent unread per conversation
-      const threadMap = new Map<string, typeof (unread ?? [])[0]>()
+      type UnreadMsg = { id: string; body: string; created_at: string; from_id: string; parent_id: string | null }
+      const threadMap = new Map<string, UnreadMsg>()
       for (const msg of unread ?? []) {
         const tid = msg.parent_id ?? msg.id
         const existing = threadMap.get(tid)
