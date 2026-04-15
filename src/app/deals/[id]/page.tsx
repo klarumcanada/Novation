@@ -16,23 +16,23 @@ const BRAND = {
 const STAGES = [
   { key: 'interested',           label: 'Interest' },
   { key: 'valuation_pending',    label: 'Valuation' },
-  { key: 'valuation_shared',     label: 'Valuation' },   // same visual step
-  { key: 'loi',                  label: 'LOI' },
+  { key: 'valuation_shared',     label: 'Valuation' },
+  { key: 'loi',                  label: 'Letter of Intent' },
   { key: 'due_diligence',        label: 'Due Diligence' },
-  { key: 'client_communication', label: 'Client Comms' },
+  { key: 'client_communication', label: 'Client Communications' },
   { key: 'book_transfer',        label: 'Book Transfer' },
   { key: 'closed',               label: 'Deal Complete' },
 ] as const
 
 // Deduplicated for display (valuation_pending + valuation_shared = one step)
 const DISPLAY_STAGES = [
-  { keys: ['interested'],                        label: 'Interest' },
+  { keys: ['interested'],                           label: 'Interest' },
   { keys: ['valuation_pending','valuation_shared'], label: 'Valuation' },
-  { keys: ['loi'],                               label: 'LOI' },
-  { keys: ['due_diligence'],                     label: 'Due Diligence' },
-  { keys: ['client_communication'],              label: 'Client Comms' },
-  { keys: ['book_transfer'],                     label: 'Book Transfer' },
-  { keys: ['closed'],                            label: 'Deal Complete' },
+  { keys: ['loi'],                                  label: 'Letter of Intent' },
+  { keys: ['due_diligence'],                        label: 'Due Diligence' },
+  { keys: ['client_communication'],                 label: 'Client Communications' },
+  { keys: ['book_transfer'],                        label: 'Book Transfer' },
+  { keys: ['closed'],                               label: 'Deal Complete' },
 ]
 
 function stageIndex(status: string) {
@@ -72,44 +72,49 @@ function Avatar({ name, url, size = 44 }: { name: string; url?: string | null; s
   )
 }
 
-// ─── Stage Progress Bar ───────────────────────────────────────────────────────
+// ─── Stage Progress Tracker ───────────────────────────────────────────────────
 function StageBar({ status }: { status: string }) {
   const current = stageIndex(status)
+  const total   = DISPLAY_STAGES.length
+  const currentLabel = current >= 0 ? DISPLAY_STAGES[current].label : 'Canceled'
+  const fillPct = current <= 0 ? 0 : Math.round((current / (total - 1)) * 100)
+
   return (
-    <div style={{ overflowX: 'auto', padding: '0 0 4px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 560, gap: 0 }}>
+    <div>
+      {/* Top row: current stage name + step counter */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 14, fontWeight: 600, color: BRAND.midnight }}>
+          {currentLabel}
+        </span>
+        {current >= 0 && (
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+            Step {current + 1} of {total}
+          </span>
+        )}
+      </div>
+
+      {/* Bar */}
+      <div style={{ height: 6, background: '#E2E6F0', borderRadius: 100, overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ height: '100%', width: `${fillPct}%`, background: BRAND.electric, borderRadius: 100 }} />
+      </div>
+
+      {/* Step labels with · separators */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', fontFamily: 'DM Sans, sans-serif', fontSize: 11, lineHeight: 1.6 }}>
         {DISPLAY_STAGES.map((stage, i) => {
           const done   = i < current
           const active = i === current
           return (
-            <div key={stage.label} style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans, sans-serif',
-                  background: done ? BRAND.electric : active ? BRAND.midnight : '#E5E7EB',
-                  color: done || active ? 'white' : '#9CA3AF',
-                  border: active ? `2px solid ${BRAND.electric}` : 'none',
-                }}>
-                  {done ? '✓' : i + 1}
-                </div>
-                <span style={{
-                  fontFamily: 'DM Sans, sans-serif', fontSize: '10px', marginTop: 5,
-                  color: active ? BRAND.midnight : 'var(--color-text-primary)',
-                  fontWeight: active ? 700 : 400,
-                  textAlign: 'center', whiteSpace: 'nowrap',
-                }}>
-                  {stage.label}
-                </span>
-              </div>
-              {i < DISPLAY_STAGES.length - 1 && (
-                <div style={{
-                  height: 2, flex: 1, marginTop: 13, marginBottom: 0,
-                  background: done ? BRAND.electric : '#E5E7EB',
-                }} />
+            <span key={stage.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {i > 0 && (
+                <span style={{ color: '#D4D4CF', margin: '0 5px' }}>·</span>
               )}
-            </div>
+              <span style={{
+                fontWeight: active ? 700 : done ? 500 : 400,
+                color: done ? BRAND.electric : active ? BRAND.midnight : '#B4B2A9',
+              }}>
+                {stage.label}
+              </span>
+            </span>
           )
         })}
       </div>
@@ -118,15 +123,15 @@ function StageBar({ status }: { status: string }) {
 }
 
 // ─── Tab bar ─────────────────────────────────────────────────────────────────
-const TABS = ['Valuation', 'LOI', 'Due Diligence', 'Clients', 'Notes'] as const
+const TABS = ['Valuation', 'Letter of Intent', 'Due Diligence', 'Client Communications', 'Notes'] as const
 type Tab = typeof TABS[number]
 
 // Maps each tab to the DISPLAY_STAGES index whose passage marks it "done"
 const TAB_STAGE_IDX: Partial<Record<Tab, number>> = {
-  'Valuation':     1,
-  'LOI':           2,
-  'Due Diligence': 3,
-  'Clients':       4,
+  'Valuation':             1,
+  'Letter of Intent':      2,
+  'Due Diligence':         3,
+  'Client Communications': 4,
 }
 
 function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: Tab) => void; dealStatus: string }) {
@@ -137,32 +142,41 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
       display: 'flex',
       alignItems: 'flex-end',
       gap: 3,
-      padding: '12px 20px 0',
-      background: '#F3F4F6',
+      padding: '0 20px 0',
+      background: '#F7F7F6',
       borderBottom: `1px solid ${BRAND.border}`,
     }}>
       {TABS.map(tab => {
-        const isActive = active === tab
-        const stageIdx = TAB_STAGE_IDX[tab]
-        const isDone = stageIdx !== undefined && currentIdx > stageIdx
+        const isActive  = active === tab
+        const stageIdx  = TAB_STAGE_IDX[tab]
+        // Notes is always in "done" style; other tabs done when their stage is passed
+        const isDone    = tab === 'Notes' || (stageIdx !== undefined && currentIdx > stageIdx)
+
+        let bg: string, color: string, fontWeight: number
+
+        if (isActive) {
+          bg = 'white'; color = BRAND.midnight; fontWeight = 600
+        } else if (isDone) {
+          bg = '#F5F8FF'; color = BRAND.electric; fontWeight = 400
+        } else {
+          bg = '#F7F7F6'; color = '#B4B2A9'; fontWeight = 400
+        }
 
         return (
           <button
             key={tab}
             onClick={() => onChange(tab)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
               padding: '9px 15px',
+              marginTop: 12,
               border: `1px solid ${BRAND.border}`,
               borderBottom: isActive ? '1px solid white' : `1px solid ${BRAND.border}`,
-              borderRadius: '7px 7px 0 0',
-              background: isActive ? 'white' : '#E9EAEC',
+              borderRadius: '6px 6px 0 0',
+              background: bg,
               fontFamily: 'DM Sans, sans-serif',
               fontSize: '13px',
-              fontWeight: isActive ? 700 : 400,
-              color: isActive ? BRAND.midnight : '#6B7280',
+              fontWeight,
+              color,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               marginBottom: -1,
@@ -170,18 +184,6 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
               zIndex: isActive ? 2 : 1,
             }}
           >
-            {stageIdx !== undefined && (
-              isDone ? (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <circle cx="7" cy="7" r="7" fill={BRAND.electric} />
-                  <path d="M4 7.5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <circle cx="7" cy="7" r="6" stroke="#D1D5DB" strokeWidth="1.5" />
-                </svg>
-              )
-            )}
             {tab}
           </button>
         )
@@ -506,7 +508,7 @@ export default function DealDetailPage() {
     </div>
   )
 
-  const other = deal.is_seller ? deal.buyer : deal.seller
+  const other    = deal.is_seller ? deal.buyer : deal.seller
   const isClosed = deal.status === 'closed'
 
   const STAGE_LABEL_MAP: Record<string, string> = {
@@ -519,6 +521,16 @@ export default function DealDetailPage() {
     book_transfer:        'Book Transfer',
     closed:               'Closed',
     canceled:             'Canceled',
+  }
+
+  // Badge colours
+  let badgeBg     = '#E6F1FB'
+  let badgeColor  = '#185FA5'
+  let badgeBorder = '#B5D4F4'
+  if (deal.status === 'canceled') {
+    badgeBg = '#F3F4F6'; badgeColor = '#9CA3AF'; badgeBorder = '#E5E7EB'
+  } else if (isClosed) {
+    badgeBg = '#D1FAE5'; badgeColor = '#065F46'; badgeBorder = '#6EE7B7'
   }
 
   async function cancelDeal() {
@@ -552,46 +564,46 @@ export default function DealDetailPage() {
         <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${BRAND.border}`, overflow: 'hidden', marginBottom: '1.5rem' }}>
 
           {/* Header */}
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BRAND.border}`, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Avatar name={other.full_name} url={other.avatar_url} size={48} />
+          <div style={{ padding: '24px', borderBottom: `1px solid ${BRAND.border}`, display: 'flex', alignItems: 'center', gap: 18 }}>
+            <Avatar name={other.full_name} url={other.avatar_url} size={72} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 20, fontWeight: 600, color: BRAND.midnight, marginBottom: 2 }}>
+              <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 26, fontWeight: 600, color: BRAND.midnight, marginBottom: 4, lineHeight: 1.2 }}>
                 {other.full_name}
               </div>
-              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>
                 {deal.is_seller ? 'Buyer' : 'Seller'} · Started {new Date(deal.created_at).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
             <span style={{
-              fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600,
-              padding: '5px 14px', borderRadius: 100,
-              background: deal.status === 'canceled' ? '#FEF2F2' : isClosed ? '#D1FAE5' : '#DBEAFE',
-              color: deal.status === 'canceled' ? '#991B1B' : isClosed ? '#065F46' : BRAND.navy,
-              border: `1px solid ${deal.status === 'canceled' ? '#FECACA' : isClosed ? '#6EE7B7' : '#BFDBFE'}`,
+              fontFamily: 'DM Sans, sans-serif', fontSize: 12, fontWeight: 500,
+              padding: '5px 16px', borderRadius: 20,
+              background: badgeBg, color: badgeColor,
+              border: `1px solid ${badgeBorder}`,
+              whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               {STAGE_LABEL_MAP[deal.status] ?? deal.status}
             </span>
           </div>
 
           {/* Stage tracker */}
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BRAND.border}` }}>
+          <div style={{ padding: '20px 24px 16px' }}>
             <StageBar status={deal.status} />
           </div>
 
-          {/* Tab bar */}
+          {/* Tab bar — 16px gap achieved via marginTop on tabs */}
           <TabBar active={activeTab} onChange={setActiveTab} dealStatus={deal.status} />
 
           {/* Tab content */}
           <div style={{ minHeight: 200 }}>
-            {activeTab === 'Valuation' && <ValuationTab deal={deal} />}
-            {activeTab === 'LOI' && <LOITab deal={deal} />}
-            {activeTab === 'Due Diligence' && (
+            {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
+            {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
+            {activeTab === 'Due Diligence'         && (
               <PlaceholderTab
                 title="Due Diligence"
                 description="Document requests, checklists, and data room access will appear here."
               />
             )}
-            {activeTab === 'Clients' && (
+            {activeTab === 'Client Communications' && (
               <PlaceholderTab
                 title="Client List"
                 description="Client roster and transition communication tracking will appear here."
