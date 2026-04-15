@@ -67,6 +67,9 @@ export default function NovationNav() {
       </Link>
 
       <div className="nov-nav-links">
+        <Link href="/dashboard" className={`nov-nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>
+          Dashboard
+        </Link>
         <Link href="/marketplace" className={`nov-nav-link ${pathname.startsWith('/marketplace') ? 'active' : ''}`}>
           Marketplace
         </Link>

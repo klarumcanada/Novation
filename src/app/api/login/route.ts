@@ -50,5 +50,5 @@ const mga = mgaUser.mgas as unknown as { slug: string }
     return NextResponse.json({ success: true, redirect: `/mga/${mga.slug}` }, { status: 200 })
   }
 
-  return NextResponse.json({ success: true, redirect: '/profile' }, { status: 200 })
+  return NextResponse.json({ success: true, redirect: '/dashboard' }, { status: 200 })
 }
