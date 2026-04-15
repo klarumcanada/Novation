@@ -68,8 +68,12 @@ export default function DealsPage() {
     if (!window.confirm('Cancel this deal? This cannot be undone.')) return
     setCanceling(dealId)
     const res = await fetch(`/api/deals/${dealId}/cancel`, { method: 'POST' })
+    const json = await res.json()
     if (res.ok) {
       setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status: 'canceled' } : d))
+    } else {
+      console.error('Cancel failed:', json)
+      alert(`Could not cancel deal: ${json.error ?? 'Unknown error'}`)
     }
     setCanceling(null)
   }
