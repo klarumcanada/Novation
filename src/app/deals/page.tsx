@@ -21,6 +21,7 @@ const STAGE_LABELS: Record<string, string> = {
   client_communication: 'Client Communication',
   book_transfer:        'Book Transfer',
   closed:               'Closed',
+  canceled:             'Canceled',
 }
 
 const STAGE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
@@ -32,6 +33,7 @@ const STAGE_COLORS: Record<string, { bg: string; color: string; border: string }
   client_communication: { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
   book_transfer:        { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
   closed:               { bg: '#D1FAE5', color: '#065F46', border: '#6EE7B7' },
+  canceled:             { bg: '#FEF2F2', color: '#991B1B', border: '#FECACA' },
 }
 
 function Avatar({ name }: { name: string }) {
@@ -53,6 +55,7 @@ export default function DealsPage() {
   const router = useRouter()
   const [deals, setDeals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [canceling, setCanceling] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/deals')
@@ -60,6 +63,16 @@ export default function DealsPage() {
       .then(data => { setDeals(Array.isArray(data) ? data : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  async function cancelDeal(dealId: string) {
+    if (!window.confirm('Cancel this deal? This cannot be undone.')) return
+    setCanceling(dealId)
+    const res = await fetch(`/api/deals/${dealId}/cancel`, { method: 'POST' })
+    if (res.ok) {
+      setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status: 'canceled' } : d))
+    }
+    setCanceling(null)
+  }
 
   return (
     <div style={{ background: BRAND.chalk, minHeight: '100vh', paddingBottom: '4rem' }}>
@@ -152,6 +165,28 @@ export default function DealsPage() {
                   >
                     Open
                   </button>
+                  {deal.status !== 'canceled' && deal.status !== 'closed' && (
+                    <button
+                      onClick={() => cancelDeal(deal.id)}
+                      disabled={canceling === deal.id}
+                      style={{
+                        padding: '8px 16px',
+                        border: '1px solid #FECACA',
+                        borderRadius: '8px',
+                        background: 'white',
+                        color: '#DC2626',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        fontFamily: 'DM Sans, sans-serif',
+                        cursor: canceling === deal.id ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                        opacity: canceling === deal.id ? 0.6 : 1,
+                      }}
+                    >
+                      {canceling === deal.id ? '…' : 'Cancel'}
+                    </button>
+                  )}
                 </div>
               )
             })}

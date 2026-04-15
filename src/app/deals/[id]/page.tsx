@@ -478,6 +478,7 @@ export default function DealDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('Valuation')
+  const [canceling, setCanceling] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -514,6 +515,15 @@ export default function DealDetailPage() {
     client_communication: 'Client Communication',
     book_transfer:        'Book Transfer',
     closed:               'Closed',
+    canceled:             'Canceled',
+  }
+
+  async function cancelDeal() {
+    if (!window.confirm('Cancel this deal? This cannot be undone.')) return
+    setCanceling(true)
+    const res = await fetch(`/api/deals/${id}/cancel`, { method: 'POST' })
+    if (res.ok) setDeal((prev: any) => ({ ...prev, status: 'canceled' }))
+    setCanceling(false)
   }
 
   return (
@@ -546,9 +556,9 @@ export default function DealDetailPage() {
             <span style={{
               fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600,
               padding: '5px 14px', borderRadius: 100,
-              background: isClosed ? '#D1FAE5' : '#DBEAFE',
-              color: isClosed ? '#065F46' : BRAND.navy,
-              border: `1px solid ${isClosed ? '#6EE7B7' : '#BFDBFE'}`,
+              background: deal.status === 'canceled' ? '#FEF2F2' : isClosed ? '#D1FAE5' : '#DBEAFE',
+              color: deal.status === 'canceled' ? '#991B1B' : isClosed ? '#065F46' : BRAND.navy,
+              border: `1px solid ${deal.status === 'canceled' ? '#FECACA' : isClosed ? '#6EE7B7' : '#BFDBFE'}`,
             }}>
               {STAGE_LABEL_MAP[deal.status] ?? deal.status}
             </span>
@@ -582,6 +592,30 @@ export default function DealDetailPage() {
               <NotesTab dealId={id} currentUserId={currentUserId} />
             )}
           </div>
+
+          {/* Cancel deal */}
+          {deal.status !== 'canceled' && deal.status !== 'closed' && (
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${BRAND.border}` }}>
+              <button
+                onClick={cancelDeal}
+                disabled={canceling}
+                style={{
+                  padding: '9px 20px',
+                  border: '1px solid #FECACA',
+                  borderRadius: 8,
+                  background: 'white',
+                  color: '#DC2626',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'DM Sans, sans-serif',
+                  cursor: canceling ? 'not-allowed' : 'pointer',
+                  opacity: canceling ? 0.6 : 1,
+                }}
+              >
+                {canceling ? 'Canceling…' : 'Cancel Deal'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Thread link */}
