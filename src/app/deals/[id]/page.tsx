@@ -54,7 +54,7 @@ const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   mga:    { bg: '#D1FAE5', color: '#065F46' },
 }
 
-function Avatar({ name, size = 44 }: { name: string; size?: number }) {
+function Avatar({ name, url, size = 44 }: { name: string; url?: string | null; size?: number }) {
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   return (
     <div style={{
@@ -62,9 +62,12 @@ function Avatar({ name, size = 44 }: { name: string; size?: number }) {
       background: BRAND.midnight, color: 'white',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.34, fontWeight: 700,
-      fontFamily: 'DM Sans, sans-serif', flexShrink: 0,
+      fontFamily: 'DM Sans, sans-serif', flexShrink: 0, overflow: 'hidden',
     }}>
-      {initials}
+      {url
+        ? <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials
+      }
     </div>
   )
 }
@@ -550,7 +553,7 @@ export default function DealDetailPage() {
 
           {/* Header */}
           <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BRAND.border}`, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Avatar name={other.full_name} size={48} />
+            <Avatar name={other.full_name} url={other.avatar_url} size={48} />
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 20, fontWeight: 600, color: BRAND.midnight, marginBottom: 2 }}>
                 {other.full_name}

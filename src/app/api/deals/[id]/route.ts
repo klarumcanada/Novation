@@ -30,8 +30,8 @@ export async function GET(
       seller_confirmed_next, buyer_confirmed_next,
       loi_seller_signed, loi_buyer_signed,
       loi_seller_signed_at, loi_buyer_signed_at,
-      seller:seller_id(id, full_name),
-      buyer:buyer_id(id, full_name)
+      seller:seller_id(id, full_name, avatar_url),
+      buyer:buyer_id(id, full_name, avatar_url)
     `)
     .eq('id', id)
     .single()

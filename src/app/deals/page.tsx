@@ -36,7 +36,7 @@ const STAGE_COLORS: Record<string, { bg: string; color: string; border: string }
   canceled:             { bg: '#F3F4F6', color: '#9CA3AF', border: '#E5E7EB' },
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, url }: { name: string; url?: string | null }) {
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   return (
     <div style={{
@@ -44,9 +44,12 @@ function Avatar({ name }: { name: string }) {
       background: BRAND.midnight, color: 'white',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: 15, fontWeight: 700, fontFamily: 'DM Sans, sans-serif',
-      flexShrink: 0,
+      flexShrink: 0, overflow: 'hidden',
     }}>
-      {initials}
+      {url
+        ? <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials
+      }
     </div>
   )
 }
@@ -126,7 +129,7 @@ export default function DealsPage() {
                     gap: '14px',
                     minWidth: 0,
                   }}>
-                    <Avatar name={other.full_name} />
+                    <Avatar name={other.full_name} url={other.avatar_url} />
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{

@@ -34,15 +34,15 @@ export async function GET() {
   const allIds = [...new Set((data ?? []).flatMap(d => [d.seller_id, d.buyer_id]))]
   const { data: advisors } = await supabase
     .from('advisors')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url')
     .in('id', allIds)
 
-  const advisorMap = Object.fromEntries((advisors ?? []).map(a => [a.id, a.full_name]))
+  const advisorMap = Object.fromEntries((advisors ?? []).map(a => [a.id, a]))
 
   const hydrated = (data ?? []).map(deal => ({
     ...deal,
-    seller: { id: deal.seller_id, full_name: advisorMap[deal.seller_id] ?? 'Unknown' },
-    buyer: { id: deal.buyer_id, full_name: advisorMap[deal.buyer_id] ?? 'Unknown' },
+    seller: { id: deal.seller_id, full_name: advisorMap[deal.seller_id]?.full_name ?? 'Unknown', avatar_url: advisorMap[deal.seller_id]?.avatar_url ?? null },
+    buyer: { id: deal.buyer_id, full_name: advisorMap[deal.buyer_id]?.full_name ?? 'Unknown', avatar_url: advisorMap[deal.buyer_id]?.avatar_url ?? null },
     is_seller: deal.seller_id === user.id,
     is_initiator: deal.initiator_id === user.id,
     my_confirmed: deal.seller_id === user.id ? deal.seller_confirmed_next : deal.buyer_confirmed_next,
