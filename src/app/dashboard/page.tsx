@@ -45,8 +45,8 @@ function timeAgo(iso: string) {
 function MessageIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke={BRAND.navy} strokeWidth="1.25" />
-      <path d="M1.5 5.5l6.5 4.5 6.5-4.5" stroke={BRAND.navy} strokeWidth="1.25" strokeLinecap="round" />
+      <rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="#185FA5" strokeWidth="1.25" />
+      <path d="M1.5 5.5l6.5 4.5 6.5-4.5" stroke="#185FA5" strokeWidth="1.25" strokeLinecap="round" />
     </svg>
   )
 }
@@ -54,8 +54,8 @@ function MessageIcon() {
 function DealIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="#4C1D95" strokeWidth="1.25" />
-      <path d="M5 2.5v2M11 2.5v2M1.5 7h13" stroke="#4C1D95" strokeWidth="1.25" strokeLinecap="round" />
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="#E24B4A" strokeWidth="1.25" />
+      <path d="M5 2.5v2M11 2.5v2M1.5 7h13" stroke="#E24B4A" strokeWidth="1.25" strokeLinecap="round" />
     </svg>
   )
 }
@@ -67,9 +67,16 @@ export default function DashboardPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const [feed, setFeed]         = useState<FeedItem[]>([])
-  const [firstName, setFirstName] = useState('')
-  const [loading, setLoading]   = useState(true)
+  const [feed, setFeed]                           = useState<FeedItem[]>([])
+  const [firstName, setFirstName]                 = useState('')
+  const [loading, setLoading]                     = useState(true)
+  const [activeDealsCount, setActiveDealsCount]   = useState(0)
+  const [unreadMsgCount, setUnreadMsgCount]       = useState(0)
+  const [actionsNeededCount, setActionsNeededCount] = useState(0)
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
 
   useEffect(() => {
     async function load() {
@@ -120,7 +127,7 @@ export default function DashboardPage() {
         description: `New message from ${senderMap[msg.from_id] ?? 'Someone'}`,
         created_at:  msg.created_at,
         href:        `/inbox/${msg.parent_id ?? msg.id}`,
-        action:      'View message →',
+        action:      'View →',
       }))
 
       // ── Deals waiting on user ────────────────────────────────────
@@ -163,10 +170,15 @@ export default function DashboardPage() {
             description: `Your confirmation needed — ${stage} with ${otherName}`,
             created_at:  deal.updated_at ?? deal.created_at,
             href:        `/deals/${deal.id}`,
-            action:      'View deal →',
+            action:      'View →',
           })
         }
       }
+
+      // ── Stat counts ───────────────────────────────────────────────
+      setActiveDealsCount((deals ?? []).filter(d => d.status !== 'closed' && d.status !== 'canceled').length)
+      setUnreadMsgCount((unread ?? []).length)
+      setActionsNeededCount(dealItems.length)
 
       // ── Merge + sort ─────────────────────────────────────────────
       const all = [...messageItems, ...dealItems].sort(
@@ -186,23 +198,64 @@ export default function DashboardPage() {
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
 
         {/* Greeting */}
-        <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: '26px', fontWeight: 600, color: BRAND.midnight, margin: '0 0 0.25rem' }}>
+        <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: '28px', fontWeight: 600, color: BRAND.midnight, margin: '0 0 0.2rem' }}>
           {firstName ? `Welcome back, ${firstName}.` : 'Welcome back.'}
         </h1>
-        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#9CA3AF', margin: '0 0 2rem' }}>
-          Here's what needs your attention.
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#888780', margin: '0 0 2rem' }}>
+          {today}
         </p>
+
+        {/* Stat cards */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
+          {[
+            { label: 'Active deals',    value: activeDealsCount,    red: false },
+            { label: 'Unread messages', value: unreadMsgCount,      red: false },
+            { label: 'Actions needed',  value: actionsNeededCount,  red: actionsNeededCount > 0 },
+          ].map(card => (
+            <div
+              key={card.label}
+              style={{
+                flex: 1,
+                background: 'white',
+                border: `1px solid ${BRAND.border}`,
+                borderRadius: '10px',
+                padding: '16px 18px',
+              }}
+            >
+              <div style={{
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: '#888780',
+                marginBottom: '6px',
+              }}>
+                {card.label}
+              </div>
+              <div style={{
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: '26px',
+                fontWeight: 600,
+                lineHeight: 1,
+                color: card.red ? '#E24B4A' : BRAND.midnight,
+              }}>
+                {loading ? '–' : card.value}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Activity feed */}
         <div style={{ marginBottom: '2rem' }}>
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: '0.75rem' }}>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#888780', marginBottom: '0.75rem' }}>
             Activity
           </div>
 
           {loading ? (
             <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#9CA3AF' }}>Loading…</p>
           ) : feed.length === 0 ? (
-            <div style={{ background: 'white', borderRadius: '12px', border: `1px solid ${BRAND.border}`, padding: '2.5rem', textAlign: 'center' }}>
+            <div style={{ background: 'white', borderRadius: '10px', border: `1px solid ${BRAND.border}`, padding: '2.5rem', textAlign: 'center' }}>
               <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'center' }}>
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                   <circle cx="14" cy="14" r="13" stroke="#D1FAE5" strokeWidth="2" fill="#D1FAE5" />
@@ -219,15 +272,15 @@ export default function DashboardPage() {
                 <div
                   key={item.id}
                   style={{
-                    background: 'white', borderRadius: '12px',
+                    background: 'white', borderRadius: '10px',
                     border: `1px solid ${BRAND.border}`,
                     padding: '1rem 1.25rem',
                     display: 'flex', alignItems: 'center', gap: '12px',
                   }}
                 >
                   <div style={{
-                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                    background: item.type === 'message' ? '#DBEAFE' : '#EDE9FE',
+                    width: 36, height: 36, borderRadius: '8px', flexShrink: 0,
+                    background: item.type === 'message' ? '#E6F1FB' : '#FCEBEB',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     {item.type === 'message' ? <MessageIcon /> : <DealIcon />}
@@ -237,7 +290,7 @@ export default function DashboardPage() {
                     <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 500, color: BRAND.midnight }}>
                       {item.description}
                     </div>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#888780', marginTop: '2px' }}>
                       {timeAgo(item.created_at)}
                     </div>
                   </div>
@@ -245,10 +298,13 @@ export default function DashboardPage() {
                   <button
                     onClick={() => router.push(item.href)}
                     style={{
-                      padding: '7px 14px', border: 'none', borderRadius: '8px',
-                      background: BRAND.midnight, color: 'white',
+                      padding: '7px 14px', borderRadius: '8px',
                       fontSize: '12px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
                       cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      ...(item.type === 'deal'
+                        ? { border: 'none', background: BRAND.midnight, color: 'white' }
+                        : { border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight }
+                      ),
                     }}
                   >
                     {item.action}
@@ -261,31 +317,39 @@ export default function DashboardPage() {
 
         {/* Quick actions */}
         <div>
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: '0.75rem' }}>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#888780', marginBottom: '0.75rem' }}>
             Quick actions
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button
               onClick={() => router.push('/marketplace')}
               style={{
-                flex: 1, padding: '14px 16px',
-                background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: '12px',
-                fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 500,
-                color: BRAND.midnight, cursor: 'pointer', textAlign: 'left',
+                padding: '16px 18px',
+                background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: '10px',
+                cursor: 'pointer', textAlign: 'left',
               }}
             >
-              Search marketplace →
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 500, color: BRAND.midnight, marginBottom: '3px' }}>
+                Search marketplace →
+              </div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#888780' }}>
+                Browse available books
+              </div>
             </button>
             <button
               onClick={() => router.push('/profile/edit')}
               style={{
-                flex: 1, padding: '14px 16px',
-                background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: '12px',
-                fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 500,
-                color: BRAND.midnight, cursor: 'pointer', textAlign: 'left',
+                padding: '16px 18px',
+                background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: '10px',
+                cursor: 'pointer', textAlign: 'left',
               }}
             >
-              Update your profile →
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', fontWeight: 500, color: BRAND.midnight, marginBottom: '3px' }}>
+                Update your profile →
+              </div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#888780' }}>
+                Keep your listing current
+              </div>
             </button>
           </div>
         </div>
