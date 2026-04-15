@@ -93,7 +93,7 @@ function StageBar({ status }: { status: string }) {
                 </div>
                 <span style={{
                   fontFamily: 'DM Sans, sans-serif', fontSize: '10px', marginTop: 5,
-                  color: active ? BRAND.midnight : done ? BRAND.electric : '#9CA3AF',
+                  color: active ? BRAND.midnight : 'var(--color-text-primary)',
                   fontWeight: active ? 700 : 400,
                   textAlign: 'center', whiteSpace: 'nowrap',
                 }}>
@@ -118,33 +118,71 @@ function StageBar({ status }: { status: string }) {
 const TABS = ['Valuation', 'LOI', 'Due Diligence', 'Clients', 'Notes'] as const
 type Tab = typeof TABS[number]
 
-function TabBar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
+// Maps each tab to the DISPLAY_STAGES index whose passage marks it "done"
+const TAB_STAGE_IDX: Partial<Record<Tab, number>> = {
+  'Valuation':     1,
+  'LOI':           2,
+  'Due Diligence': 3,
+  'Clients':       4,
+}
+
+function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: Tab) => void; dealStatus: string }) {
+  const currentIdx = stageIndex(dealStatus)
+
   return (
     <div style={{
-      display: 'flex', borderBottom: `2px solid ${BRAND.border}`,
-      gap: 0, marginBottom: 0,
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 3,
+      padding: '12px 20px 0',
+      background: '#F3F4F6',
+      borderBottom: `1px solid ${BRAND.border}`,
     }}>
-      {TABS.map(tab => (
-        <button
-          key={tab}
-          onClick={() => onChange(tab)}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            borderBottom: active === tab ? `2px solid ${BRAND.electric}` : '2px solid transparent',
-            marginBottom: -2,
-            background: 'none',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '13px',
-            fontWeight: active === tab ? 700 : 400,
-            color: active === tab ? BRAND.midnight : '#9CA3AF',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {tab}
-        </button>
-      ))}
+      {TABS.map(tab => {
+        const isActive = active === tab
+        const stageIdx = TAB_STAGE_IDX[tab]
+        const isDone = stageIdx !== undefined && currentIdx > stageIdx
+
+        return (
+          <button
+            key={tab}
+            onClick={() => onChange(tab)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 15px',
+              border: `1px solid ${BRAND.border}`,
+              borderBottom: isActive ? '1px solid white' : `1px solid ${BRAND.border}`,
+              borderRadius: '7px 7px 0 0',
+              background: isActive ? 'white' : '#E9EAEC',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '13px',
+              fontWeight: isActive ? 700 : 400,
+              color: isActive ? BRAND.midnight : '#6B7280',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              marginBottom: -1,
+              position: 'relative',
+              zIndex: isActive ? 2 : 1,
+            }}
+          >
+            {stageIdx !== undefined && (
+              isDone ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="7" fill={BRAND.electric} />
+                  <path d="M4 7.5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="6" stroke="#D1D5DB" strokeWidth="1.5" />
+                </svg>
+              )
+            )}
+            {tab}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -522,9 +560,7 @@ export default function DealDetailPage() {
           </div>
 
           {/* Tab bar */}
-          <div style={{ padding: '0 24px', background: 'white' }}>
-            <TabBar active={activeTab} onChange={setActiveTab} />
-          </div>
+          <TabBar active={activeTab} onChange={setActiveTab} dealStatus={deal.status} />
 
           {/* Tab content */}
           <div style={{ minHeight: 200 }}>
