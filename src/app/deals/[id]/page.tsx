@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
 
@@ -775,6 +775,8 @@ type DealClient = {
   id: string
   client_name: string
   client_email: string
+  carrier?: string | null
+  policy_id?: string | null
   consent_status: 'pending' | 'consented' | 'refused'
   consent_responded_at: string | null
   email_sent_at: string | null
@@ -804,47 +806,244 @@ function parseCSV(text: string): Array<{ client_name: string; client_email: stri
   }).filter(c => c.client_name && c.client_email)
 }
 
-function ClientStatusPill({ client }: { client: DealClient }) {
-  // Determine effective status: if email sent but consent still pending → 'sent'
-  const effective = client.consent_status !== 'pending'
-    ? client.consent_status
-    : client.email_sent_at ? 'sent' : 'pending'
+const CC_TEMPLATES = {
+  standard: {
+    key: 'standard' as const,
+    label: 'Standard consent request',
+    description: 'A formal letter explaining the transfer and requesting client consent.',
+    subject: DEFAULT_SUBJECT,
+    body: DEFAULT_BODY,
+  },
+  personal: {
+    key: 'personal' as const,
+    label: 'Personal note from advisor',
+    description: 'A warmer, personal message that introduces the new advisor directly.',
+    subject: 'A personal note about your insurance coverage',
+    body: `Dear [Client Name],
 
-  type PillStyle = { bg: string; color: string; label: string }
-  const styles: Record<string, PillStyle> = {
+I wanted to reach out personally to share some important news. After many years, I am transitioning my practice to [Buyer Name], a trusted colleague who I know will serve you with the same care and dedication.
+
+[Buyer Name] will be in touch shortly to introduce themselves. In the meantime, please use the link below to provide your consent for this transfer.
+
+Warmly,
+[Your Name]`,
+  },
+  followup: {
+    key: 'followup' as const,
+    label: 'Follow-up reminder',
+    description: 'A brief reminder for clients who have not yet responded.',
+    subject: 'Reminder: Your consent is needed for your policy transfer',
+    body: `Dear [Client Name],
+
+I wanted to follow up on my earlier message regarding the transfer of your insurance policy to [Buyer Name].
+
+Your consent is still needed to complete this process. Please click the link below at your earliest convenience.
+
+[Your Name]`,
+  },
+} as const
+
+type CCTemplateKey = keyof typeof CC_TEMPLATES
+
+function clientEffectiveStatus(c: DealClient): 'pending' | 'sent' | 'consented' | 'refused' {
+  if (c.consent_status === 'consented') return 'consented'
+  if (c.consent_status === 'refused')   return 'refused'
+  return c.email_sent_at ? 'sent' : 'pending'
+}
+
+function ClientStatusPill({ client }: { client: DealClient }) {
+  const eff = clientEffectiveStatus(client)
+  type S = { bg: string; color: string; label: string }
+  const map: Record<string, S> = {
     pending:   { bg: '#F3F4F6', color: '#6B7280', label: 'Pending'   },
     sent:      { bg: '#DBEAFE', color: '#1E40AF', label: 'Sent'      },
     consented: { bg: '#D1FAE5', color: '#065F46', label: 'Consented' },
     refused:   { bg: '#FEE2E2', color: '#991B1B', label: 'Refused'   },
   }
-  const s = styles[effective] ?? styles.pending
+  const s = map[eff] ?? map.pending
 
   let dateStr = ''
-  if (effective === 'sent' && client.email_sent_at) {
+  if (eff === 'sent' && client.email_sent_at) {
     dateStr = new Date(client.email_sent_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
-  } else if ((effective === 'consented' || effective === 'refused') && client.consent_responded_at) {
+  } else if ((eff === 'consented' || eff === 'refused') && client.consent_responded_at) {
     dateStr = new Date(client.consent_responded_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
   }
 
   return (
-    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 100, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
+    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 100, background: s.bg, color: s.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
       {s.label}{dateStr ? ` · ${dateStr}` : ''}
     </span>
   )
 }
 
+function CCModalOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(13,27,62,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: 'white', borderRadius: 14, padding: '32px', maxWidth: 480, width: '100%', boxShadow: '0 8px 40px rgba(13,27,62,0.15)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function ImportModal({ onClose, onConfirm, importing }: { onClose: () => void; onConfirm: () => void; importing: boolean }) {
+  return (
+    <CCModalOverlay onClose={onClose}>
+      <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.midnight, marginBottom: 10 }}>Import client list from MGA</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 1.6 }}>The following fields will be imported from your MGA:</div>
+        <ul style={{ margin: '0 0 20px 0', paddingLeft: 18, fontSize: 13, color: BRAND.midnight, lineHeight: 2 }}>
+          <li>Client name(s)</li>
+          <li>Email address</li>
+          <li>Carrier</li>
+          <li>Policy ID</li>
+        </ul>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} disabled={importing} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+            {importing ? 'Importing…' : 'Confirm & import'}
+          </button>
+        </div>
+      </div>
+    </CCModalOverlay>
+  )
+}
+
+function AddClientModal({ onClose, onSubmit, submitting }: {
+  onClose: () => void
+  onSubmit: (d: { client_name: string; client_email: string; carrier: string; policy_id: string }) => void
+  submitting: boolean
+}) {
+  const [clientName, setClientName]   = useState('')
+  const [clientEmail, setClientEmail] = useState('')
+  const [carrier, setCarrier]         = useState('')
+  const [policyId, setPolicyId]       = useState('')
+
+  const iStyle = {
+    width: '100%', boxSizing: 'border-box' as const, padding: '9px 12px', borderRadius: 8,
+    border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif',
+    fontSize: 13, color: BRAND.midnight, outline: 'none', background: 'white',
+  }
+  const canSubmit = clientName.trim() && clientEmail.trim() && !submitting
+
+  return (
+    <CCModalOverlay onClose={onClose}>
+      <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.midnight, marginBottom: 20 }}>Add a client</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+          <input type="text"  value={clientName}  onChange={e => setClientName(e.target.value)}  placeholder="Client name(s)" style={iStyle} />
+          <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email address"  style={iStyle} />
+          <input type="text"  value={carrier}     onChange={e => setCarrier(e.target.value)}     placeholder="Carrier"        style={iStyle} />
+          <input type="text"  value={policyId}    onChange={e => setPolicyId(e.target.value)}    placeholder="Policy ID"      style={iStyle} />
+        </div>
+        <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 20, lineHeight: 1.6 }}>
+          This client will be visible to the MGA but will not be automatically synced back to their system.
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => onSubmit({ client_name: clientName.trim(), client_email: clientEmail.trim(), carrier: carrier.trim(), policy_id: policyId.trim() })}
+            disabled={!canSubmit}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: canSubmit ? BRAND.midnight : '#E5E7EB', color: canSubmit ? 'white' : '#9CA3AF', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: canSubmit ? 'pointer' : 'not-allowed' }}
+          >
+            {submitting ? 'Adding…' : 'Add client'}
+          </button>
+        </div>
+      </div>
+    </CCModalOverlay>
+  )
+}
+
+function SendEmailModal({ clients, defaultTemplate, onClose, onConfirm, sending }: {
+  clients: DealClient[]
+  defaultTemplate: CCTemplateKey
+  onClose: () => void
+  onConfirm: (template: CCTemplateKey) => void
+  sending: boolean
+}) {
+  const [template, setTemplate] = useState<CCTemplateKey>(defaultTemplate)
+
+  return (
+    <CCModalOverlay onClose={onClose}>
+      <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.midnight, marginBottom: 16 }}>Send consent email</div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 8 }}>
+            Recipients ({clients.length})
+          </div>
+          <div style={{ maxHeight: 130, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {clients.map(c => (
+              <div key={c.id} style={{ fontSize: 13, color: BRAND.midnight }}>
+                {c.client_name}<span style={{ color: '#9CA3AF' }}> · {c.client_email}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 8 }}>
+            Template
+          </div>
+          <select
+            value={template}
+            onChange={e => setTemplate(e.target.value as CCTemplateKey)}
+            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none', background: 'white' }}
+          >
+            {Object.values(CC_TEMPLATES).map(t => (
+              <option key={t.key} value={t.key}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(template)}
+            disabled={sending}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.6 : 1 }}
+          >
+            {sending ? 'Sending…' : `Send to ${clients.length} ${clients.length === 1 ? 'client' : 'clients'}`}
+          </button>
+        </div>
+      </div>
+    </CCModalOverlay>
+  )
+}
+
 function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
-  const [clients, setClients]           = useState<DealClient[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [subTab, setSubTab]             = useState<'clients' | 'email'>('clients')
-  const [addMode, setAddMode]           = useState<'single' | 'csv' | null>(null)
-  const [singleName, setSingleName]     = useState('')
-  const [singleEmail, setSingleEmail]   = useState('')
+  const [clients, setClients]   = useState<DealClient[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [subTab, setSubTab]     = useState<'clients' | 'email'>('clients')
+  const [selectedTemplate, setSelectedTemplate] = useState<CCTemplateKey>('standard')
+
+  // Modals
+  const [showImport, setShowImport]   = useState(false)
+  const [showAdd, setShowAdd]         = useState(false)
+  const [sendTargets, setSendTargets] = useState<DealClient[] | null>(null)
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [hoveredId, setHoveredId]     = useState<string | null>(null)
+
+  // Loading states
+  const [importing, setImporting]       = useState(false)
   const [addingClient, setAddingClient] = useState(false)
-  const [subject, setSubject]           = useState(DEFAULT_SUBJECT)
-  const [body, setBody]                 = useState(DEFAULT_BODY)
   const [sending, setSending]           = useState(false)
   const [submitting, setSubmitting]     = useState(false)
+  const [ccError, setCcError]           = useState('')
 
   useEffect(() => {
     fetch(`/api/deals/${dealId}/clients`)
@@ -853,57 +1052,74 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
       .finally(() => setLoading(false))
   }, [dealId])
 
-  async function addSingleClient() {
-    if (!singleName.trim() || !singleEmail.trim()) return
+  const eligibleClients = clients.filter(c => c.consent_status === 'pending')
+
+  function toggleSelectAll() {
+    if (selectedIds.size === eligibleClients.length && eligibleClients.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(eligibleClients.map(c => c.id)))
+    }
+  }
+
+  function toggleClient(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function runImport() {
+    setImporting(true)
+    try {
+      const res  = await fetch(`/api/deals/${dealId}/clients/mga-import`, { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.clients) {
+        setClients(data.clients)
+        setShowImport(false)
+      } else {
+        alert(data.error ?? 'Import failed. Please try again.')
+      }
+    } catch {
+      alert('Import failed. Please try again.')
+    }
+    setImporting(false)
+  }
+
+  async function addClient(d: { client_name: string; client_email: string; carrier: string; policy_id: string }) {
     setAddingClient(true)
     const res  = await fetch(`/api/deals/${dealId}/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_name: singleName.trim(), client_email: singleEmail.trim() }),
+      body: JSON.stringify({ client_name: d.client_name, client_email: d.client_email }),
     })
     const data = await res.json()
     if (data.clients) {
       setClients(prev => [...prev, ...data.clients])
-      setSingleName(''); setSingleEmail(''); setAddMode(null)
+      setShowAdd(false)
     } else {
       alert(data.error ?? 'Failed to add client.')
     }
     setAddingClient(false)
   }
 
-  async function handleCSV(file: File) {
-    const parsed = parseCSV(await file.text())
-    if (parsed.length === 0) {
-      alert('Could not parse CSV. Make sure it has "name" and "email" columns.')
-      return
-    }
-    setAddingClient(true)
-    const res  = await fetch(`/api/deals/${dealId}/clients`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsed),
-    })
-    const data = await res.json()
-    if (data.clients) {
-      setClients(prev => [...prev, ...data.clients])
-      setAddMode(null)
-    } else {
-      alert(data.error ?? 'Failed to import clients.')
-    }
-    setAddingClient(false)
-  }
-
-  async function sendEmails() {
+  async function sendEmails(templateKey: CCTemplateKey) {
+    if (!sendTargets || sendTargets.length === 0) return
     setSending(true)
+    const tmpl = CC_TEMPLATES[templateKey]
     const res  = await fetch(`/api/deals/${dealId}/clients/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject, body }),
+      body: JSON.stringify({ subject: tmpl.subject, body: tmpl.body, client_ids: sendTargets.map(c => c.id) }),
     })
     const data = await res.json()
     if (res.ok) {
       const fresh = await fetch(`/api/deals/${dealId}/clients`).then(r => r.json())
       if (fresh.clients) setClients(fresh.clients)
+      setSelectedIds(new Set())
+      setSendTargets(null)
     } else {
       alert(data.error ?? 'Failed to send emails.')
     }
@@ -911,6 +1127,11 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
   }
 
   async function markCCComplete() {
+    setCcError('')
+    if (!allConsented) {
+      setCcError('All clients must consent before advancing to Book Transfer.')
+      return
+    }
     setSubmitting(true)
     const res  = await fetch(`/api/deals/${dealId}/cc-complete`, { method: 'POST' })
     const data = await res.json()
@@ -926,8 +1147,6 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
     <div style={{ padding: '28px 32px', fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
   )
 
-  const anyEmailSent   = clients.some(c => c.email_sent_at)
-  const anyUnsent      = clients.some(c => !c.email_sent_at)
   const allConsented   = clients.length > 0 && clients.every(c => c.consent_status === 'consented')
   const pendingCount   = clients.filter(c => c.consent_status === 'pending').length
   const consentedCount = clients.filter(c => c.consent_status === 'consented').length
@@ -938,189 +1157,250 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
   const otherParty     = deal.is_seller ? deal.buyer : deal.seller
   const otherFirst     = otherParty?.full_name?.split(' ')[0] ?? 'the other party'
 
-  const pillActive   = { background: BRAND.midnight, color: 'white',    borderRadius: 20, padding: '6px 16px', fontSize: 13, border: 'none',                         fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' } as const
-  const pillInactive = { background: 'transparent',  color: '#888780',  borderRadius: 20, padding: '6px 16px', fontSize: 13, border: `1px solid ${BRAND.border}`,    fontFamily: 'DM Sans, sans-serif', fontWeight: 400, cursor: 'pointer' } as const
+  const selectedList          = clients.filter(c => selectedIds.has(c.id))
+  const selectAllChecked      = eligibleClients.length > 0 && selectedIds.size === eligibleClients.length
+  const selectAllIndeterminate = selectedIds.size > 0 && selectedIds.size < eligibleClients.length
+
+  const pillActive:   React.CSSProperties = { background: BRAND.midnight, color: 'white',   borderRadius: 20, padding: '6px 16px', fontSize: 13, border: 'none',                       fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }
+  const pillInactive: React.CSSProperties = { background: 'transparent',  color: '#888780', borderRadius: 20, padding: '6px 16px', fontSize: 13, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontWeight: 400, cursor: 'pointer' }
 
   return (
     <div style={{ padding: '28px 32px' }}>
 
-      {/* ── Sub-tab pill toggle ── */}
+      {/* Modals */}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} onConfirm={runImport} importing={importing} />}
+      {showAdd    && <AddClientModal onClose={() => setShowAdd(false)} onSubmit={addClient} submitting={addingClient} />}
+      {sendTargets && (
+        <SendEmailModal
+          clients={sendTargets}
+          defaultTemplate={selectedTemplate}
+          onClose={() => setSendTargets(null)}
+          onConfirm={sendEmails}
+          sending={sending}
+        />
+      )}
+
+      {/* Sub-tab pills */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
-        <button onClick={() => setSubTab('clients')} style={subTab === 'clients' ? pillActive : pillInactive}>
-          Clients
-        </button>
-        <button onClick={() => setSubTab('email')} style={subTab === 'email' ? pillActive : pillInactive}>
-          Email template
-        </button>
+        <button onClick={() => setSubTab('clients')} style={subTab === 'clients' ? pillActive : pillInactive}>Clients</button>
+        <button onClick={() => setSubTab('email')}   style={subTab === 'email'   ? pillActive : pillInactive}>Email template</button>
       </div>
 
-      {/* ── Sub-tab 1: Clients ── */}
+      {/* ── Clients sub-tab ── */}
       {subTab === 'clients' && (
         <div>
-          {/* Add-mode buttons */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {(['single', 'csv'] as const).map(mode => {
-              const label  = mode === 'single' ? 'Add one by one' : 'Upload CSV'
-              const active = addMode === mode
-              return (
-                <button
-                  key={mode}
-                  onClick={() => setAddMode(active ? null : mode)}
-                  style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: active ? BRAND.midnight : 'white', color: active ? 'white' : BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-            <button disabled style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: '#C4C4C4', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'not-allowed' }}>
-              MGA import&nbsp;<span style={{ fontSize: 10 }}>Coming soon</span>
-            </button>
-          </div>
-
-          {/* Single add form */}
-          {addMode === 'single' && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              <input
-                type="text" value={singleName} onChange={e => setSingleName(e.target.value)}
-                placeholder="Client name"
-                style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
-              />
-              <input
-                type="email" value={singleEmail} onChange={e => setSingleEmail(e.target.value)}
-                placeholder="Email address"
-                onKeyDown={e => e.key === 'Enter' && addSingleClient()}
-                style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
-              />
-              <button
-                onClick={addSingleClient}
-                disabled={addingClient || !singleName.trim() || !singleEmail.trim()}
-                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >
-                {addingClient ? '…' : 'Add'}
-              </button>
-            </div>
-          )}
-
-          {/* CSV upload */}
-          {addMode === 'csv' && (
-            <div style={{ marginBottom: 16 }}>
-              <input
-                type="file" accept=".csv,text/csv"
-                onChange={e => { if (e.target.files?.[0]) handleCSV(e.target.files[0]); e.target.value = '' }}
-                style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13 }}
-              />
-              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
-                CSV must have "name" and "email" columns.
-              </div>
-            </div>
-          )}
-
-          {/* Client rows */}
           {clients.length === 0 ? (
-            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
-              No clients added yet.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>
-              {clients.map(client => (
-                <div key={client.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${BRAND.border}`, borderRadius: 10, background: 'white' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight }}>{client.client_name}</div>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{client.client_email}</div>
-                  </div>
-                  <ClientStatusPill client={client} />
-                </div>
-              ))}
+            /* Empty state */
+            <div style={{ border: `2px dashed ${BRAND.border}`, borderRadius: 12, padding: '40px 32px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: 600, color: BRAND.midnight, marginBottom: 8 }}>
+                No clients loaded yet
+              </div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 340, margin: '0 auto 24px' }}>
+                Pull your client list directly from the MGA, or add clients individually.
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setShowImport(true)}
+                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+                >
+                  Pull my client list
+                </button>
+                <button
+                  onClick={() => setShowAdd(true)}
+                  style={{ padding: '9px 20px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+                >
+                  Add a client
+                </button>
+              </div>
             </div>
-          )}
-
-          {/* Consent summary + CC complete — shown once any email has been sent */}
-          {anyEmailSent && (
-            <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 24 }}>
-              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
-                Consent summary
+          ) : (
+            /* Loaded state */
+            <>
+              {/* Toolbar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' as const }}>
+                  <input
+                    type="checkbox"
+                    checked={selectAllChecked}
+                    ref={el => { if (el) el.indeterminate = selectAllIndeterminate }}
+                    onChange={toggleSelectAll}
+                    style={{ width: 15, height: 15, cursor: 'pointer', accentColor: BRAND.midnight }}
+                  />
+                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#6B7280' }}>
+                    {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+                  </span>
+                </label>
+                <div style={{ flex: 1 }} />
+                <button
+                  onClick={() => setShowAdd(true)}
+                  style={{ padding: '6px 13px', borderRadius: 7, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 12, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  + Add a client
+                </button>
+                <button
+                  onClick={() => setSendTargets(selectedList)}
+                  disabled={selectedIds.size === 0}
+                  style={{ padding: '6px 13px', borderRadius: 7, border: 'none', background: selectedIds.size > 0 ? BRAND.midnight : '#E5E7EB', color: selectedIds.size > 0 ? 'white' : '#9CA3AF', fontSize: 12, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: selectedIds.size > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
+                >
+                  Send email
+                </button>
               </div>
 
-              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                {[
-                  { label: 'Pending',   value: pendingCount,   red: false },
-                  { label: 'Consented', value: consentedCount, red: false },
-                  { label: 'Refused',   value: refusedCount,   red: refusedCount > 0 },
-                ].map(card => (
-                  <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#888780', marginBottom: 4 }}>
-                      {card.label}
-                    </div>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, lineHeight: 1, color: card.red ? '#E24B4A' : BRAND.midnight }}>
-                      {card.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Client rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>
+                {clients.map(client => {
+                  const eff      = clientEffectiveStatus(client)
+                  const eligible = eff === 'pending' || eff === 'sent'
+                  const locked   = !eligible
+                  const isHovered = hoveredId === client.id
 
-              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
-                All parties must consent before advancing to Book Transfer.
-              </div>
-
-              {deal.status === 'client_communication' && (
-                myConfirmed ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
-                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
-                      You've marked client communications complete. Waiting for {otherFirst} to confirm.
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={markCCComplete}
-                      disabled={submitting || !allConsented}
+                  return (
+                    <div
+                      key={client.id}
+                      onMouseEnter={() => setHoveredId(client.id)}
+                      onMouseLeave={() => setHoveredId(null)}
                       style={{
-                        padding: '9px 20px', borderRadius: 8, border: 'none',
-                        background: BRAND.midnight, color: 'white',
-                        fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif',
-                        cursor: submitting || !allConsented ? 'not-allowed' : 'pointer',
-                        opacity: !allConsented ? 0.5 : 1,
-                        marginBottom: 8,
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px', border: `1px solid ${BRAND.border}`,
+                        borderRadius: 10, background: 'white',
+                        opacity: locked ? 0.5 : 1, transition: 'opacity 0.1s',
                       }}
                     >
-                      {submitting ? 'Saving…' : 'Mark client communications complete'}
-                    </button>
-                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
-                      {otherConfirmed
-                        ? `${otherFirst} has marked client communications complete. Confirm to advance.`
-                        : 'Both parties must confirm to advance to Book Transfer.'
-                      }
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(client.id)}
+                        disabled={locked}
+                        onChange={() => !locked && toggleClient(client.id)}
+                        style={{ width: 15, height: 15, cursor: locked ? 'not-allowed' : 'pointer', accentColor: BRAND.midnight, flexShrink: 0 }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight }}>{client.client_name}</div>
+                        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
+                          {client.client_email}
+                          {client.carrier   && <> · {client.carrier}</>}
+                          {client.policy_id && <> · {client.policy_id}</>}
+                        </div>
+                      </div>
+                      {eff === 'sent' && isHovered && (
+                        <button
+                          onClick={() => setSendTargets([client])}
+                          style={{ background: 'none', border: 'none', padding: '2px 6px', fontSize: 12, fontFamily: 'DM Sans, sans-serif', color: BRAND.electric, cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}
+                        >
+                          Resend
+                        </button>
+                      )}
+                      <ClientStatusPill client={client} />
                     </div>
-                  </>
-                )
-              )}
-            </div>
+                  )
+                })}
+              </div>
+
+              {/* Consent summary + CC complete */}
+              <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 24 }}>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
+                  Consent summary
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                  {[
+                    { label: 'Pending',   value: pendingCount,   red: false },
+                    { label: 'Consented', value: consentedCount, red: false },
+                    { label: 'Refused',   value: refusedCount,   red: refusedCount > 0 },
+                  ].map(card => (
+                    <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#888780', marginBottom: 4 }}>
+                        {card.label}
+                      </div>
+                      <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, lineHeight: 1, color: card.red ? '#E24B4A' : BRAND.midnight }}>
+                        {card.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
+                  All parties must consent before advancing to Book Transfer.
+                </div>
+
+                {deal.status === 'client_communication' && (
+                  myConfirmed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+                      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
+                        You've marked client communications complete. Waiting for {otherFirst} to confirm.
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={markCCComplete}
+                        disabled={submitting}
+                        style={{
+                          width: '100%', padding: '13px 20px', borderRadius: 8, border: 'none',
+                          background: BRAND.midnight, color: 'white',
+                          fontSize: 13, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                          fontFamily: 'DM Sans, sans-serif', cursor: submitting ? 'not-allowed' : 'pointer',
+                          opacity: submitting ? 0.7 : 1, marginBottom: 8,
+                        }}
+                      >
+                        {submitting ? 'Saving…' : 'Mark client communications complete'}
+                      </button>
+                      {ccError ? (
+                        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#E24B4A' }}>
+                          {ccError}
+                        </div>
+                      ) : (
+                        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                          {otherConfirmed
+                            ? `${otherFirst} has already confirmed. Click to advance to Book Transfer.`
+                            : 'Both parties must confirm to advance to Book Transfer.'
+                          }
+                        </div>
+                      )}
+                    </>
+                  )
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
 
-      {/* ── Sub-tab 2: Email template ── */}
+      {/* ── Email template sub-tab ── */}
       {subTab === 'email' && (
-        <div>
-          <input
-            type="text" value={subject} onChange={e => setSubject(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10, border: `1px solid ${BRAND.border}`, borderRadius: 8, fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight, outline: 'none' }}
-          />
-          <textarea
-            value={body} onChange={e => setBody(e.target.value)} rows={12}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '12px', border: `1px solid ${BRAND.border}`, borderRadius: 8, fontFamily: 'DM Mono, monospace', fontSize: 12, color: BRAND.midnight, resize: 'vertical', outline: 'none', lineHeight: 1.75, marginBottom: 10 }}
-          />
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-            [Client Name] and [Buyer Name] will be personalized automatically for each recipient.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {Object.values(CC_TEMPLATES).map(tmpl => {
+            const isSelected = selectedTemplate === tmpl.key
+            return (
+              <button
+                key={tmpl.key}
+                onClick={() => setSelectedTemplate(tmpl.key)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px 20px',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: isSelected ? `2px solid ${BRAND.midnight}` : `1px solid ${BRAND.border}`,
+                  background: isSelected ? '#F5F7FF' : 'white',
+                }}
+              >
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                  border: isSelected ? `5px solid ${BRAND.midnight}` : `2px solid #D1D5DB`,
+                  background: 'white', boxSizing: 'border-box',
+                }} />
+                <div>
+                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 600, color: BRAND.midnight, marginBottom: 4 }}>
+                    {tmpl.label}
+                  </div>
+                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>
+                    {tmpl.description}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+            The selected template pre-populates the send modal and can still be changed before sending.
           </div>
-          <button
-            onClick={sendEmails}
-            disabled={sending || !anyUnsent}
-            style={{ padding: '10px 22px', border: 'none', borderRadius: 8, background: anyUnsent ? BRAND.midnight : '#E5E7EB', color: anyUnsent ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: anyUnsent && !sending ? 'pointer' : 'not-allowed' }}
-          >
-            {sending ? 'Sending…' : 'Send to all unsent clients'}
-          </button>
         </div>
       )}
     </div>
