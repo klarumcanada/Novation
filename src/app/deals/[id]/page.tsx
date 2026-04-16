@@ -83,11 +83,11 @@ function StageBar({ status }: { status: string }) {
     <div>
       {/* Top row: current stage name + step counter */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 14, fontWeight: 600, color: BRAND.midnight }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: 600, color: BRAND.midnight }}>
           {currentLabel}
         </span>
         {current >= 0 && (
-          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, color: '#9CA3AF' }}>
             Step {current + 1} of {total}
           </span>
         )}
@@ -196,7 +196,7 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
 function PlaceholderTab({ title, description }: { title: string; description: string }) {
   return (
     <div style={{
-      padding: '40px 24px', textAlign: 'center',
+      padding: '40px 32px', textAlign: 'center',
       color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif',
     }}>
       <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
@@ -239,12 +239,12 @@ function ValuationTab({ deal }: { deal: any }) {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: '28px 32px' }}>
       <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 8 }}>
         Book Value Assessment
       </div>
       {valuation.low_value && valuation.high_value ? (
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: 28, fontWeight: 600, color: BRAND.midnight, marginBottom: 8 }}>
+        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 22, fontWeight: 600, color: BRAND.midnight, marginBottom: 8 }}>
           {formatMoney(valuation.low_value)} – {formatMoney(valuation.high_value)}
         </div>
       ) : (
@@ -265,8 +265,9 @@ function ValuationTab({ deal }: { deal: any }) {
         )}
       </div>
       {valuation.shared_with_buyer && (
-        <div style={{ marginTop: 12, fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#065F46', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: 8, padding: '8px 12px', display: 'inline-block' }}>
-          ✓ Shared with buyer
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>Shared with buyer</span>
         </div>
       )}
     </div>
@@ -284,7 +285,7 @@ function LOITab({ deal }: { deal: any }) {
   const bothSigned = deal.loi_seller_signed && deal.loi_buyer_signed
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: '28px 32px' }}>
       <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 16 }}>
         Letter of Intent
       </div>
@@ -564,13 +565,13 @@ export default function DealDetailPage() {
         <div style={{ background: 'white', borderRadius: 14, border: `1px solid ${BRAND.border}`, overflow: 'hidden', marginBottom: '1.5rem' }}>
 
           {/* Header */}
-          <div style={{ padding: '24px', borderBottom: `1px solid ${BRAND.border}`, display: 'flex', alignItems: 'center', gap: 18 }}>
-            <Avatar name={other.full_name} url={other.avatar_url} size={72} />
+          <div style={{ padding: '28px 32px', borderBottom: `1px solid ${BRAND.border}`, display: 'flex', alignItems: 'center', gap: 18 }}>
+            <Avatar name={other.full_name} url={other.avatar_url} size={80} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 26, fontWeight: 600, color: BRAND.midnight, marginBottom: 4, lineHeight: 1.2 }}>
+              <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 28, fontWeight: 600, color: BRAND.midnight, marginBottom: 4, lineHeight: 1.2 }}>
                 {other.full_name}
               </div>
-              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 14, color: '#9CA3AF' }}>
                 {deal.is_seller ? 'Buyer' : 'Seller'} · Started {new Date(deal.created_at).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
@@ -586,7 +587,7 @@ export default function DealDetailPage() {
           </div>
 
           {/* Stage tracker */}
-          <div style={{ padding: '20px 24px 16px' }}>
+          <div style={{ padding: '24px 32px 16px' }}>
             <StageBar status={deal.status} />
           </div>
 

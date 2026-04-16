@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const [activeDealsCount, setActiveDealsCount]   = useState(0)
   const [unreadMsgCount, setUnreadMsgCount]       = useState(0)
   const [actionsNeededCount, setActionsNeededCount] = useState(0)
+  const [userIsSeller, setUserIsSeller]           = useState(false)
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -179,6 +180,7 @@ export default function DashboardPage() {
       setActiveDealsCount((deals ?? []).filter(d => d.status !== 'closed' && d.status !== 'canceled').length)
       setUnreadMsgCount((unread ?? []).length)
       setActionsNeededCount(dealItems.length)
+      setUserIsSeller((deals ?? []).some(d => d.seller_id === user.id))
 
       // ── Merge + sort ─────────────────────────────────────────────
       const all = [...messageItems, ...dealItems].sort(
@@ -333,7 +335,7 @@ export default function DashboardPage() {
                 Search marketplace →
               </div>
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#888780' }}>
-                Browse available books
+                {userIsSeller ? 'Browse potential buyers' : 'Browse available books'}
               </div>
             </button>
             <button
