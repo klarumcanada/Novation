@@ -741,10 +741,10 @@ function DueDiligenceTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                   disabled={submitting}
                   style={{
                     padding: '9px 20px',
-                    border: otherConfirmed ? 'none' : `1px solid ${BRAND.border}`,
+                    border: 'none',
                     borderRadius: 8,
-                    background: otherConfirmed ? BRAND.midnight : 'white',
-                    color: otherConfirmed ? 'white' : BRAND.midnight,
+                    background: BRAND.midnight,
+                    color: 'white',
                     fontSize: 13,
                     fontWeight: 400,
                     fontFamily: 'DM Sans, sans-serif',
