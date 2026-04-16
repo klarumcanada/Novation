@@ -625,12 +625,12 @@ export default function DealDetailPage() {
               disabled={canceling}
               style={{
                 padding: '9px 20px',
-                border: `1px solid ${BRAND.border}`,
+                border: '1px solid #E2E6F0',
                 borderRadius: 8,
                 background: 'white',
-                color: '#6B7280',
+                color: '#0D1B3E',
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: 400,
                 fontFamily: 'DM Sans, sans-serif',
                 cursor: canceling ? 'not-allowed' : 'pointer',
                 opacity: canceling ? 0.6 : 1,

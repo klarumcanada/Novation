@@ -112,14 +112,9 @@ export default function NovationNav() {
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: settingsOpen ? '#0D1B3E' : undefined }}
             aria-label="Settings"
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M7.47 1.26a1.75 1.75 0 0 1 3.06 0l.3.52a1.75 1.75 0 0 0 2.39.64l.52-.3a1.75 1.75 0 0 1 2.17 2.6l-.36.44a1.75 1.75 0 0 0 0 2.68l.36.44a1.75 1.75 0 0 1-2.17 2.6l-.52-.3a1.75 1.75 0 0 0-2.39.64l-.3.52a1.75 1.75 0 0 1-3.06 0l-.3-.52a1.75 1.75 0 0 0-2.39-.64l-.52.3a1.75 1.75 0 0 1-2.17-2.6l.36-.44a1.75 1.75 0 0 0 0-2.68l-.36-.44A1.75 1.75 0 0 1 4.26 2.08l.52.3a1.75 1.75 0 0 0 2.39-.64l.3-.52ZM9 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
-                fill="currentColor"
-                opacity="0.7"
-              />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
 
