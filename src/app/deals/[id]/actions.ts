@@ -9,6 +9,96 @@ import { cookies } from 'next/headers'
 //   ALTER TABLE deal_clients ADD COLUMN IF NOT EXISTS policy_id text;
 //   ALTER TABLE deal_clients ADD COLUMN IF NOT EXISTS source    text;
 
+// ── Contracting validation ────────────────────────────────────────────────────
+
+export type CarrierContractingRow = {
+  carrier:        string
+  sellerPolicies: number
+  buyerStatus:    'active' | 'pending' | 'missing'
+}
+
+const CONTRACTING_SEED: CarrierContractingRow[] = [
+  { carrier: 'Canada Life',   sellerPolicies: 14, buyerStatus: 'active'  },
+  { carrier: 'Sun Life',      sellerPolicies: 11, buyerStatus: 'active'  },
+  { carrier: 'Manulife',      sellerPolicies: 9,  buyerStatus: 'pending' },
+  { carrier: 'iA Financial',  sellerPolicies: 8,  buyerStatus: 'active'  },
+  { carrier: 'Empire Life',   sellerPolicies: 5,  buyerStatus: 'missing' },
+  { carrier: 'RBC Insurance', sellerPolicies: 3,  buyerStatus: 'missing' },
+]
+
+// ── Book transfer complete ────────────────────────────────────────────────────
+// Required DB migration:
+//   ALTER TABLE deals ADD COLUMN IF NOT EXISTS book_transfer_completed_at timestamptz;
+
+export async function completeBookTransfer(dealId: string): Promise<void> {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: () => {},
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('seller_id, buyer_id, status')
+    .eq('id', dealId)
+    .single()
+
+  if (!deal) throw new Error('Deal not found')
+  if (deal.seller_id !== user.id && deal.buyer_id !== user.id) throw new Error('Unauthorized')
+  if (deal.status !== 'book_transfer') throw new Error('Deal is not in the book transfer stage')
+
+  const { error } = await supabase
+    .from('deals')
+    .update({
+      status: 'closed',
+      book_transfer_completed_at: new Date().toISOString(),
+    })
+    .eq('id', dealId)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function validateContracting(dealId: string): Promise<{ carriers: CarrierContractingRow[] }> {
+  // Simulate third-party authority API latency
+  await new Promise(r => setTimeout(r, 1400))
+
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: () => {},
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('seller_id, buyer_id')
+    .eq('id', dealId)
+    .single()
+
+  if (!deal || (deal.seller_id !== user.id && deal.buyer_id !== user.id)) {
+    throw new Error('Unauthorized')
+  }
+
+  return { carriers: CONTRACTING_SEED }
+}
+
 export type ImportedClient = {
   id: string
   client_name: string

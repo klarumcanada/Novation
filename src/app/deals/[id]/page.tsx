@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
-import { importClientsFromMGA } from './actions'
+import { importClientsFromMGA, validateContracting, completeBookTransfer, CarrierContractingRow } from './actions'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -124,7 +124,7 @@ function StageBar({ status }: { status: string }) {
 }
 
 // ─── Tab bar ─────────────────────────────────────────────────────────────────
-const TABS = ['Valuation', 'Letter of Intent', 'Due Diligence', 'Client Communications', 'Notes'] as const
+const TABS = ['Valuation', 'Letter of Intent', 'Due Diligence', 'Client Communications', 'Book Transfer', 'Notes'] as const
 type Tab = typeof TABS[number]
 
 // Maps each tab to the DISPLAY_STAGES index whose passage marks it "done"
@@ -133,6 +133,7 @@ const TAB_STAGE_IDX: Partial<Record<Tab, number>> = {
   'Letter of Intent':      2,
   'Due Diligence':         3,
   'Client Communications': 4,
+  'Book Transfer':         5,
 }
 
 function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: Tab) => void; dealStatus: string }) {
@@ -1410,6 +1411,345 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
   )
 }
 
+// ─── Book Transfer tab ───────────────────────────────────────────────────────
+
+type TransferStatus = 'pending' | 'submitted' | 'in_progress' | 'complete'
+
+type TransferRow = {
+  carrier:  string
+  policies: number
+  status:   TransferStatus
+}
+
+const BUYER_STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  active:  { bg: '#D1FAE5', color: '#065F46', label: 'Active'         },
+  pending: { bg: '#DBEAFE', color: '#1E40AF', label: 'Pending'        },
+  missing: { bg: '#FEF3C7', color: '#92400E', label: 'Not contracted' },
+}
+
+const TRANSFER_STATUS_STYLE: Record<TransferStatus, { bg: string; color: string; label: string }> = {
+  pending:     { bg: '#DBEAFE', color: '#1E40AF', label: 'Pending'     },
+  submitted:   { bg: '#EDE9FE', color: '#6D28D9', label: 'Submitted'   },
+  in_progress: { bg: '#E0F2FE', color: '#0369A1', label: 'In progress' },
+  complete:    { bg: '#D1FAE5', color: '#065F46', label: 'Complete'    },
+}
+
+const TRANSFER_NEXT_LABEL: Partial<Record<TransferStatus, string>> = {
+  pending:     'Submit transfer',
+  submitted:   'Mark in progress',
+  in_progress: 'Mark complete',
+}
+
+const TRANSFER_NEXT_STATUS: Partial<Record<TransferStatus, TransferStatus>> = {
+  pending:     'submitted',
+  submitted:   'in_progress',
+  in_progress: 'complete',
+}
+
+function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
+  const [phase,            setPhase]            = useState<1 | 2>(1)
+  const [showModal,        setShowModal]        = useState(false)
+  const [validating,       setValidating]       = useState(false)
+  const [carriers,         setCarriers]         = useState<CarrierContractingRow[]>([])
+  const [resolvingCarrier, setResolvingCarrier] = useState<string | null>(null)
+  const [transfers,        setTransfers]        = useState<TransferRow[]>([])
+  const [completing,       setCompleting]       = useState(false)
+  const [btError,          setBtError]          = useState('')
+
+  const btReached = deal.status === 'book_transfer' || deal.status === 'closed'
+  if (!btReached) return <PlaceholderTab title="Not yet reached" description="Book Transfer becomes available once Client Communications is complete." />
+
+  // ── Phase 1 helpers ────────────────────────────────────────────────────────
+
+  async function runValidation() {
+    setValidating(true)
+    try {
+      const result = await validateContracting(dealId)
+      setCarriers(result.carriers)
+      setShowModal(false)
+    } catch (e) {
+      alert((e as Error).message ?? 'Validation failed.')
+    }
+    setValidating(false)
+  }
+
+  async function resolveCarrier(carrier: string) {
+    setResolvingCarrier(carrier)
+    await new Promise(r => setTimeout(r, 1500))
+    setCarriers(prev => prev.map(c => c.carrier === carrier ? { ...c, buyerStatus: 'pending' as const } : c))
+    setResolvingCarrier(null)
+  }
+
+  function proceedToPhase2() {
+    setTransfers(carriers.map(c => ({ carrier: c.carrier, policies: c.sellerPolicies, status: 'pending' as const })))
+    setPhase(2)
+  }
+
+  const missingCount  = carriers.filter(c => c.buyerStatus === 'missing').length
+  const allResolvable = carriers.length > 0 && missingCount === 0
+
+  // ── Phase 2 helpers ────────────────────────────────────────────────────────
+
+  function advanceTransfer(carrier: string) {
+    setTransfers(prev => prev.map(t => {
+      if (t.carrier !== carrier) return t
+      const next = TRANSFER_NEXT_STATUS[t.status]
+      return next ? { ...t, status: next } : t
+    }))
+  }
+
+  async function markBookTransferComplete() {
+    setBtError('')
+    setCompleting(true)
+    try {
+      await completeBookTransfer(dealId)
+      onRefresh()
+    } catch (e) {
+      setBtError((e as Error).message ?? 'Something went wrong.')
+    }
+    setCompleting(false)
+  }
+
+  const pendingCount     = transfers.filter(t => t.status === 'pending').length
+  const inProgressCount  = transfers.filter(t => t.status === 'submitted' || t.status === 'in_progress').length
+  const completeCount    = transfers.filter(t => t.status === 'complete').length
+  const allTransfersDone = transfers.length > 0 && transfers.every(t => t.status === 'complete')
+
+  // ── Shared style ───────────────────────────────────────────────────────────
+
+  const pillActive:   React.CSSProperties = { background: BRAND.midnight, color: 'white',   borderRadius: 20, padding: '6px 16px', fontSize: 13, border: 'none',                       fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }
+  const pillInactive: React.CSSProperties = { background: 'transparent',  color: '#888780', borderRadius: 20, padding: '6px 16px', fontSize: 13, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontWeight: 400, cursor: 'pointer' }
+
+  const thStyle: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#9CA3AF', whiteSpace: 'nowrap', borderBottom: `1px solid ${BRAND.border}` }
+  const tdStyle: React.CSSProperties = { padding: '12px 14px', fontSize: 13, color: BRAND.midnight, borderBottom: `1px solid ${BRAND.border}` }
+
+  return (
+    <div style={{ padding: '28px 32px' }}>
+
+      {/* Validation consent modal */}
+      {showModal && (
+        <CCModalOverlay onClose={validating ? () => {} : () => setShowModal(false)}>
+          <style>{`@keyframes bt-spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.midnight, marginBottom: 10 }}>Validate contracting via third-party authority</div>
+            <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 1.6 }}>The following checks will be performed:</div>
+            <ul style={{ margin: '0 0 20px 0', paddingLeft: 18, fontSize: 13, color: BRAND.midnight, lineHeight: 2 }}>
+              <li>All carriers the selling advisor is contracted with through this MGA will be retrieved</li>
+              <li>Contracting status for the buying advisor at each carrier will be checked</li>
+              <li>Any outstanding compliance or licensing flags will be surfaced</li>
+            </ul>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 20, padding: '10px 14px', background: BRAND.chalk, borderRadius: 8, lineHeight: 1.6 }}>
+              This is a read-only validation — no changes are made to any carrier records.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowModal(false)} disabled={validating} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: validating ? 'not-allowed' : 'pointer', opacity: validating ? 0.5 : 1 }}>
+                Cancel
+              </button>
+              <button onClick={runValidation} disabled={validating} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: validating ? 'not-allowed' : 'pointer', opacity: validating ? 0.8 : 1 }}>
+                {validating && (
+                  <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: 'bt-spin 0.75s linear infinite', flexShrink: 0 }}>
+                    <circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" />
+                    <path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                )}
+                {validating ? 'Validating…' : 'Confirm & validate'}
+              </button>
+            </div>
+          </div>
+        </CCModalOverlay>
+      )}
+
+      {/* Sub-tab pills */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+        <button onClick={() => setPhase(1)} style={phase === 1 ? pillActive : pillInactive}>Phase 1 — Contracting validation</button>
+        <button onClick={() => setPhase(2)} disabled={transfers.length === 0} style={{ ...(phase === 2 ? pillActive : pillInactive), opacity: transfers.length === 0 ? 0.4 : 1, cursor: transfers.length === 0 ? 'not-allowed' : 'pointer' }}>Phase 2 — Policy transfer</button>
+      </div>
+
+      {/* ── Phase 1 ── */}
+      {phase === 1 && (
+        <div>
+          {carriers.length === 0 ? (
+            /* Empty state */
+            <div style={{ border: `2px dashed ${BRAND.border}`, borderRadius: 12, padding: '40px 32px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: 600, color: BRAND.midnight, marginBottom: 8 }}>
+                Contracting not yet validated
+              </div>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 380, margin: '0 auto 24px' }}>
+                Contracting will be validated against the buying advisor's records via a third-party authority. No changes are made.
+              </div>
+              <button onClick={() => setShowModal(true)} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+                Validate contracting via third-party authority
+              </button>
+            </div>
+          ) : (
+            /* Loaded state */
+            <>
+              {/* Warning banner */}
+              {missingCount > 0 && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
+                    <strong>{missingCount} carrier{missingCount !== 1 ? 's' : ''} require attention.</strong> The buying advisor is not yet contracted for these carriers. They must resolve this with the third-party authority before policy transfer can begin.
+                  </div>
+                </div>
+              )}
+
+              {/* Carrier table */}
+              <div style={{ border: `1px solid ${BRAND.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans, sans-serif' }}>
+                  <thead>
+                    <tr style={{ background: '#F7F7F6' }}>
+                      <th style={thStyle}>Carrier</th>
+                      <th style={thStyle}>Seller contracting</th>
+                      <th style={thStyle}>Buyer contracting</th>
+                      <th style={{ ...thStyle, width: 200 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {carriers.map((row, i) => {
+                      const bs       = BUYER_STATUS_STYLE[row.buyerStatus]
+                      const isLast   = i === carriers.length - 1
+                      const tdFinal  = isLast ? { ...tdStyle, borderBottom: 'none' } : tdStyle
+                      const resolving = resolvingCarrier === row.carrier
+                      return (
+                        <tr key={row.carrier}>
+                          <td style={tdFinal}>
+                            <div style={{ fontWeight: 500 }}>{row.carrier}</div>
+                            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{row.sellerPolicies} policies</div>
+                          </td>
+                          <td style={tdFinal}>
+                            <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#D1FAE5', color: '#065F46' }}>Active</span>
+                          </td>
+                          <td style={tdFinal}>
+                            <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: bs.bg, color: bs.color }}>{bs.label}</span>
+                          </td>
+                          <td style={tdFinal}>
+                            {(row.buyerStatus === 'missing' || row.buyerStatus === 'pending') && row.buyerStatus !== 'active' && row.buyerStatus === 'missing' && (
+                              <button
+                                onClick={() => resolveCarrier(row.carrier)}
+                                disabled={resolving}
+                                style={{ fontSize: 12, fontFamily: 'DM Sans, sans-serif', color: BRAND.electric, background: 'none', border: 'none', cursor: resolving ? 'not-allowed' : 'pointer', padding: 0, opacity: resolving ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                              >
+                                {resolving ? 'Submitting…' : 'Resolve with third-party authority →'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Proceed button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={proceedToPhase2}
+                  disabled={!allResolvable}
+                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: allResolvable ? BRAND.midnight : '#E5E7EB', color: allResolvable ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: allResolvable ? 'pointer' : 'not-allowed' }}
+                >
+                  Proceed to policy transfer →
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Phase 2 ── */}
+      {phase === 2 && (
+        <div>
+          {/* Summary stat cards */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+            {[
+              { label: 'Pending',     value: pendingCount    },
+              { label: 'In progress', value: inProgressCount },
+              { label: 'Complete',    value: completeCount   },
+            ].map(card => (
+              <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', color: '#888780', marginBottom: 4 }}>{card.label}</div>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, color: BRAND.midnight, lineHeight: 1 }}>{card.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Transfer table */}
+          <div style={{ border: `1px solid ${BRAND.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans, sans-serif' }}>
+              <thead>
+                <tr style={{ background: '#F7F7F6' }}>
+                  <th style={thStyle}>Carrier</th>
+                  <th style={thStyle}>Policies</th>
+                  <th style={thStyle}>Transfer status</th>
+                  <th style={{ ...thStyle, width: 180 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfers.map((row, i) => {
+                  const st     = TRANSFER_STATUS_STYLE[row.status]
+                  const isLast = i === transfers.length - 1
+                  const tdFinal = isLast ? { ...tdStyle, borderBottom: 'none' } : tdStyle
+                  const nextLabel = TRANSFER_NEXT_LABEL[row.status]
+                  return (
+                    <tr key={row.carrier}>
+                      <td style={{ ...tdFinal, fontWeight: 500 }}>{row.carrier}</td>
+                      <td style={tdFinal}>{row.policies}</td>
+                      <td style={tdFinal}>
+                        <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
+                      </td>
+                      <td style={tdFinal}>
+                        {nextLabel && (
+                          <button
+                            onClick={() => advanceTransfer(row.carrier)}
+                            style={{ fontSize: 12, fontFamily: 'DM Sans, sans-serif', color: BRAND.electric, background: 'none', border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}
+                          >
+                            {nextLabel} →
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mark complete */}
+          {deal.status === 'book_transfer' && (
+            <>
+              <button
+                onClick={markBookTransferComplete}
+                disabled={completing || !allTransfersDone}
+                style={{ width: '100%', padding: '13px 20px', borderRadius: 8, border: 'none', background: allTransfersDone ? BRAND.midnight : '#E5E7EB', color: allTransfersDone ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: 'DM Sans, sans-serif', cursor: (completing || !allTransfersDone) ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1, marginBottom: 8 }}
+              >
+                {completing ? 'Saving…' : 'Mark Book Transfer Complete'}
+              </button>
+              {btError ? (
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#E24B4A' }}>{btError}</div>
+              ) : (
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                  {allTransfersDone ? 'All carriers complete. Click to advance to Deal Complete.' : 'All carriers must reach Complete status before advancing.'}
+                </div>
+              )}
+            </>
+          )}
+
+          {deal.status === 'closed' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>Book transfer marked complete. Deal is closed.</span>
+            </div>
+          )}
+        </div>
+      )}
+
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -1539,9 +1879,8 @@ export default function DealDetailPage() {
             {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
             {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
             {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
-            {activeTab === 'Notes' && (
-              <NotesTab dealId={id} currentUserId={currentUserId} />
-            )}
+            {activeTab === 'Book Transfer'         && <BookTransferTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
+            {activeTab === 'Notes'                 && <NotesTab dealId={id} currentUserId={currentUserId} />}
           </div>
 
         </div>
