@@ -479,15 +479,15 @@ function NotesTab({ dealId, currentUserId }: { dealId: string; currentUserId: st
 // ─── Due Diligence tab ───────────────────────────────────────────────────────
 type DealDocument = {
   id: string
-  filename: string
+  title: string
   storage_path: string
   uploader_name: string
   created_at: string
   signed_url: string | null
 }
 
-function FileTypeIcon({ filename }: { filename: string }) {
-  const ext = filename.split('.').pop()?.toLowerCase()
+function FileTypeIcon({ storagePath }: { storagePath: string }) {
+  const ext = storagePath.split('.').pop()?.toLowerCase()
   let color = '#9CA3AF'
   let label = 'FILE'
   if (ext === 'pdf')                  { color = '#E24B4A'; label = 'PDF' }
@@ -507,11 +507,14 @@ function FileTypeIcon({ filename }: { filename: string }) {
   )
 }
 
-function DueDiligenceTab({ dealId }: { dealId: string }) {
+function DueDiligenceTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
   const [documents, setDocuments]   = useState<DealDocument[]>([])
   const [loading, setLoading]       = useState(true)
   const [uploading, setUploading]   = useState(false)
   const [dragOver, setDragOver]     = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [pendingFile, setPendingFile]   = useState<File | null>(null)
+  const [pendingTitle, setPendingTitle] = useState('')
   const fileInputRef                = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -521,31 +524,39 @@ function DueDiligenceTab({ dealId }: { dealId: string }) {
       .finally(() => setLoading(false))
   }, [dealId])
 
-  async function uploadFile(file: File) {
-    const ALLOWED = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/png',
-    ]
+  const ALLOWED = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/png',
+  ]
+
+  function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const file = files[0]
     if (!ALLOWED.includes(file.type)) {
       alert('Only PDF, DOCX, and PNG files are allowed.')
       return
     }
+    setPendingFile(file)
+    setPendingTitle(file.name.replace(/\.[^/.]+$/, ''))
+  }
+
+  async function uploadFile() {
+    if (!pendingFile || !pendingTitle.trim()) return
     setUploading(true)
     const form = new FormData()
-    form.append('file', file)
+    form.append('file', pendingFile)
+    form.append('title', pendingTitle.trim())
     const res  = await fetch(`/api/deals/${dealId}/documents`, { method: 'POST', body: form })
     const data = await res.json()
     if (data.document) {
       setDocuments(prev => [data.document, ...prev])
+      setPendingFile(null)
+      setPendingTitle('')
     } else {
       alert(data.error ?? 'Upload failed.')
     }
     setUploading(false)
-  }
-
-  function handleFiles(files: FileList | null) {
-    if (files && files.length > 0) uploadFile(files[0])
   }
 
   if (loading) return (
@@ -559,17 +570,17 @@ function DueDiligenceTab({ dealId }: { dealId: string }) {
 
       {/* Upload zone */}
       <div
-        onClick={() => !uploading && fileInputRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); if (!pendingFile) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+        onDrop={e => { e.preventDefault(); setDragOver(false); if (!pendingFile) handleFiles(e.dataTransfer.files) }}
         style={{
           border: `2px dashed ${dragOver ? BRAND.electric : '#E2E6F0'}`,
           borderRadius: 10,
           padding: 24,
           textAlign: 'center',
-          cursor: uploading ? 'default' : 'pointer',
-          marginBottom: 24,
+          cursor: uploading || pendingFile ? 'default' : 'pointer',
+          marginBottom: pendingFile ? 12 : 24,
           background: dragOver ? '#F5F8FF' : 'transparent',
           transition: 'border-color 0.15s, background 0.15s',
         }}
@@ -582,21 +593,63 @@ function DueDiligenceTab({ dealId }: { dealId: string }) {
           disabled={uploading}
           onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
         />
-        {uploading ? (
-          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
-            Uploading…
-          </p>
-        ) : (
-          <>
-            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: '0 0 4px' }}>
-              Drop a file or click to upload
-            </p>
-            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#B4B2A9', margin: 0 }}>
-              PDF, DOCX, or PNG
-            </p>
-          </>
-        )}
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: '0 0 4px' }}>
+          Drop a file or click to upload
+        </p>
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#B4B2A9', margin: 0 }}>
+          PDF, DOCX, or PNG
+        </p>
       </div>
+
+      {/* Staging area — shown when a file is selected but not yet uploaded */}
+      {pendingFile && (
+        <div style={{
+          border: `1px solid ${BRAND.border}`, borderRadius: 10,
+          padding: '16px 18px', marginBottom: 24,
+          background: '#FAFAFA',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <FileTypeIcon storagePath={pendingFile.name} />
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {pendingFile.name}
+            </span>
+            <button
+              onClick={() => { setPendingFile(null); setPendingTitle('') }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9CA3AF', lineHeight: 1, padding: '0 2px' }}
+            >
+              ×
+            </button>
+          </div>
+          <input
+            type="text"
+            value={pendingTitle}
+            onChange={e => setPendingTitle(e.target.value)}
+            placeholder="Document title"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '9px 12px', marginBottom: 10,
+              border: `1px solid ${BRAND.border}`, borderRadius: 8,
+              fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight,
+              outline: 'none', background: 'white',
+            }}
+          />
+          <button
+            onClick={uploadFile}
+            disabled={uploading || !pendingTitle.trim()}
+            style={{
+              padding: '9px 20px',
+              border: 'none', borderRadius: 8,
+              background: pendingTitle.trim() ? BRAND.midnight : '#E5E7EB',
+              color: pendingTitle.trim() ? 'white' : '#9CA3AF',
+              fontSize: 13, fontWeight: 500,
+              fontFamily: 'DM Sans, sans-serif',
+              cursor: uploading || !pendingTitle.trim() ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {uploading ? 'Uploading…' : 'Upload'}
+          </button>
+        </div>
+      )}
 
       {/* Document list */}
       {documents.length === 0 ? (
@@ -613,13 +666,13 @@ function DueDiligenceTab({ dealId }: { dealId: string }) {
               borderRadius: 10,
               background: 'white',
             }}>
-              <FileTypeIcon filename={doc.filename} />
+              <FileTypeIcon storagePath={doc.storage_path} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500,
                   color: BRAND.midnight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {doc.filename}
+                  {doc.title}
                 </div>
                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
                   {doc.uploader_name} · {new Date(doc.created_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -644,6 +697,413 @@ function DueDiligenceTab({ dealId }: { dealId: string }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* DD complete confirmation — only when deal is in due_diligence */}
+      {deal.status === 'due_diligence' && (() => {
+        const myConfirmed    = deal.is_seller ? deal.dd_complete_seller : deal.dd_complete_buyer
+        const otherConfirmed = deal.is_seller ? deal.dd_complete_buyer  : deal.dd_complete_seller
+        const otherParty     = deal.is_seller ? deal.buyer : deal.seller
+        const otherFirst     = otherParty?.full_name?.split(' ')[0] ?? 'the other party'
+
+        async function markComplete() {
+          setSubmitting(true)
+          const res = await fetch(`/api/deals/${dealId}/due-diligence-complete`, { method: 'POST' })
+          const data = await res.json()
+          if (res.ok) {
+            onRefresh()
+          } else {
+            alert(data.error ?? 'Something went wrong.')
+          }
+          setSubmitting(false)
+        }
+
+        return (
+          <div style={{
+            borderTop: `1px solid ${BRAND.border}`,
+            padding: '20px 32px',
+            marginTop: 8,
+          }}>
+            {myConfirmed ? (
+              // State 2 — I've confirmed, waiting on the other party
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
+                  You've marked due diligence complete. Waiting for {otherFirst} to confirm.
+                </span>
+              </div>
+            ) : (
+              // State 1 or 3
+              <>
+                <button
+                  onClick={markComplete}
+                  disabled={submitting}
+                  style={{
+                    padding: '9px 20px',
+                    border: otherConfirmed ? 'none' : `1px solid ${BRAND.border}`,
+                    borderRadius: 8,
+                    background: otherConfirmed ? BRAND.midnight : 'white',
+                    color: otherConfirmed ? 'white' : BRAND.midnight,
+                    fontSize: 13,
+                    fontWeight: 400,
+                    fontFamily: 'DM Sans, sans-serif',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    marginBottom: 8,
+                  }}
+                >
+                  {submitting ? 'Saving…' : 'Mark due diligence complete'}
+                </button>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                  {otherConfirmed
+                    ? `${otherFirst} has marked due diligence complete. Confirm to advance.`
+                    : 'Both parties must confirm to advance to Client Communications.'
+                  }
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
+// ─── Client Communications tab ───────────────────────────────────────────────
+type DealClient = {
+  id: string
+  client_name: string
+  client_email: string
+  consent_status: 'pending' | 'consented' | 'refused'
+  consent_responded_at: string | null
+  email_sent_at: string | null
+}
+
+const DEFAULT_SUBJECT = 'Important update regarding your insurance policy'
+const DEFAULT_BODY = `Dear [Client Name],
+
+I am writing to let you know that I am in the process of transferring my book of business to [Buyer Name], an experienced advisor who will be taking over the management of your policy.
+
+[Buyer Name] shares my commitment to providing excellent service and will be reaching out to introduce themselves shortly.
+
+Please click the link below to indicate your consent to this transfer.
+
+[Your Name]`
+
+function parseCSV(text: string): Array<{ client_name: string; client_email: string }> {
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return []
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+  const nameIdx  = header.findIndex(h => h.includes('name'))
+  const emailIdx = header.findIndex(h => h.includes('email'))
+  if (nameIdx === -1 || emailIdx === -1) return []
+  return lines.slice(1).map(line => {
+    const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+    return { client_name: cols[nameIdx] ?? '', client_email: cols[emailIdx] ?? '' }
+  }).filter(c => c.client_name && c.client_email)
+}
+
+function ConsentPill({ status }: { status: string }) {
+  const styles: Record<string, { bg: string; color: string; label: string }> = {
+    pending:   { bg: '#F3F4F6', color: '#6B7280', label: 'Pending' },
+    consented: { bg: '#D1FAE5', color: '#065F46', label: 'Consented' },
+    refused:   { bg: '#FEE2E2', color: '#991B1B', label: 'Refused'  },
+  }
+  const s = styles[status] ?? styles.pending
+  return (
+    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 100, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
+      {s.label}
+    </span>
+  )
+}
+
+function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
+  const [clients, setClients]         = useState<DealClient[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [addMode, setAddMode]         = useState<'single' | 'csv' | null>(null)
+  const [singleName, setSingleName]   = useState('')
+  const [singleEmail, setSingleEmail] = useState('')
+  const [addingClient, setAddingClient] = useState(false)
+  const [subject, setSubject]         = useState(DEFAULT_SUBJECT)
+  const [body, setBody]               = useState(DEFAULT_BODY)
+  const [sending, setSending]         = useState(false)
+  const [submitting, setSubmitting]   = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/deals/${dealId}/clients`)
+      .then(r => r.json())
+      .then(d => { if (d.clients) setClients(d.clients) })
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  async function addSingleClient() {
+    if (!singleName.trim() || !singleEmail.trim()) return
+    setAddingClient(true)
+    const res  = await fetch(`/api/deals/${dealId}/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_name: singleName.trim(), client_email: singleEmail.trim() }),
+    })
+    const data = await res.json()
+    if (data.clients) {
+      setClients(prev => [...prev, ...data.clients])
+      setSingleName(''); setSingleEmail(''); setAddMode(null)
+    } else {
+      alert(data.error ?? 'Failed to add client.')
+    }
+    setAddingClient(false)
+  }
+
+  async function handleCSV(file: File) {
+    const parsed = parseCSV(await file.text())
+    if (parsed.length === 0) {
+      alert('Could not parse CSV. Make sure it has "name" and "email" columns.')
+      return
+    }
+    setAddingClient(true)
+    const res  = await fetch(`/api/deals/${dealId}/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed),
+    })
+    const data = await res.json()
+    if (data.clients) {
+      setClients(prev => [...prev, ...data.clients])
+      setAddMode(null)
+    } else {
+      alert(data.error ?? 'Failed to import clients.')
+    }
+    setAddingClient(false)
+  }
+
+  async function sendEmails() {
+    setSending(true)
+    const res  = await fetch(`/api/deals/${dealId}/clients/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, body }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      const fresh = await fetch(`/api/deals/${dealId}/clients`).then(r => r.json())
+      if (fresh.clients) setClients(fresh.clients)
+    } else {
+      alert(data.error ?? 'Failed to send emails.')
+    }
+    setSending(false)
+  }
+
+  async function markCCComplete() {
+    setSubmitting(true)
+    const res  = await fetch(`/api/deals/${dealId}/cc-complete`, { method: 'POST' })
+    const data = await res.json()
+    if (res.ok) {
+      onRefresh()
+    } else {
+      alert(data.error ?? 'Something went wrong.')
+    }
+    setSubmitting(false)
+  }
+
+  if (loading) return (
+    <div style={{ padding: '28px 32px', fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
+  )
+
+  const anyEmailSent   = clients.some(c => c.email_sent_at)
+  const anyUnsent      = clients.some(c => !c.email_sent_at)
+  const allConsented   = clients.length > 0 && clients.every(c => c.consent_status === 'consented')
+  const pendingCount   = clients.filter(c => c.consent_status === 'pending').length
+  const consentedCount = clients.filter(c => c.consent_status === 'consented').length
+  const refusedCount   = clients.filter(c => c.consent_status === 'refused').length
+
+  const myConfirmed    = deal.is_seller ? deal.cc_complete_seller : deal.cc_complete_buyer
+  const otherConfirmed = deal.is_seller ? deal.cc_complete_buyer  : deal.cc_complete_seller
+  const otherParty     = deal.is_seller ? deal.buyer : deal.seller
+  const otherFirst     = otherParty?.full_name?.split(' ')[0] ?? 'the other party'
+
+  return (
+    <div style={{ padding: '28px 32px' }}>
+
+      {/* ── Section 1: Client list ── */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
+          Your clients
+        </div>
+
+        {/* Add-mode buttons */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {(['single', 'csv'] as const).map(mode => {
+            const label = mode === 'single' ? 'Add one by one' : 'Upload CSV'
+            const active = addMode === mode
+            return (
+              <button
+                key={mode}
+                onClick={() => setAddMode(active ? null : mode)}
+                style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: active ? BRAND.midnight : 'white', color: active ? 'white' : BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+              >
+                {label}
+              </button>
+            )
+          })}
+          <button disabled style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: '#C4C4C4', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'not-allowed' }}>
+            MGA import&nbsp;<span style={{ fontSize: 10 }}>Coming soon</span>
+          </button>
+        </div>
+
+        {/* Single add form */}
+        {addMode === 'single' && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input
+              type="text" value={singleName} onChange={e => setSingleName(e.target.value)}
+              placeholder="Client name"
+              style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
+            />
+            <input
+              type="email" value={singleEmail} onChange={e => setSingleEmail(e.target.value)}
+              placeholder="Email address"
+              onKeyDown={e => e.key === 'Enter' && addSingleClient()}
+              style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
+            />
+            <button
+              onClick={addSingleClient}
+              disabled={addingClient || !singleName.trim() || !singleEmail.trim()}
+              style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {addingClient ? '…' : 'Add'}
+            </button>
+          </div>
+        )}
+
+        {/* CSV upload */}
+        {addMode === 'csv' && (
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="file" accept=".csv,text/csv"
+              onChange={e => { if (e.target.files?.[0]) handleCSV(e.target.files[0]); e.target.value = '' }}
+              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13 }}
+            />
+            <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
+              CSV must have "name" and "email" columns.
+            </div>
+          </div>
+        )}
+
+        {/* Client rows */}
+        {clients.length === 0 ? (
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+            No clients added yet.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {clients.map(client => (
+              <div key={client.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${BRAND.border}`, borderRadius: 10, background: 'white' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight }}>{client.client_name}</div>
+                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{client.client_email}</div>
+                </div>
+                <ConsentPill status={client.consent_status} />
+                {client.email_sent_at && (
+                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+                    Sent {new Date(client.email_sent_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 2: Email template ── */}
+      {clients.length > 0 && (
+        <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 28, marginBottom: 32 }}>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
+            Email template
+          </div>
+          <input
+            type="text" value={subject} onChange={e => setSubject(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10, border: `1px solid ${BRAND.border}`, borderRadius: 8, fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight, outline: 'none' }}
+          />
+          <textarea
+            value={body} onChange={e => setBody(e.target.value)} rows={12}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '12px', border: `1px solid ${BRAND.border}`, borderRadius: 8, fontFamily: 'DM Mono, monospace', fontSize: 12, color: BRAND.midnight, resize: 'vertical', outline: 'none', lineHeight: 1.75, marginBottom: 10 }}
+          />
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
+            [Client Name] and [Buyer Name] will be personalized automatically for each recipient.
+          </div>
+          <button
+            onClick={sendEmails}
+            disabled={sending || !anyUnsent}
+            style={{ padding: '10px 22px', border: 'none', borderRadius: 8, background: anyUnsent ? BRAND.midnight : '#E5E7EB', color: anyUnsent ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: anyUnsent && !sending ? 'pointer' : 'not-allowed' }}
+          >
+            {sending ? 'Sending…' : 'Send to all'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Section 3: Consent summary ── */}
+      {anyEmailSent && (
+        <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 28 }}>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
+            Consent summary
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+            {[
+              { label: 'Pending',   value: pendingCount,   red: false },
+              { label: 'Consented', value: consentedCount, red: false },
+              { label: 'Refused',   value: refusedCount,   red: refusedCount > 0 },
+            ].map(card => (
+              <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#888780', marginBottom: 4 }}>
+                  {card.label}
+                </div>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, lineHeight: 1, color: card.red ? '#E24B4A' : BRAND.midnight }}>
+                  {card.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
+            All parties must consent before advancing to Book Transfer.
+          </div>
+
+          {deal.status === 'client_communication' && (
+            myConfirmed ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
+                  You've marked client communications complete. Waiting for {otherFirst} to confirm.
+                </span>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={markCCComplete}
+                  disabled={submitting || !allConsented}
+                  style={{
+                    padding: '9px 20px', borderRadius: 8,
+                    border: otherConfirmed ? 'none' : `1px solid ${BRAND.border}`,
+                    background: otherConfirmed ? BRAND.midnight : 'white',
+                    color: otherConfirmed ? 'white' : BRAND.midnight,
+                    fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif',
+                    cursor: submitting || !allConsented ? 'not-allowed' : 'pointer',
+                    opacity: !allConsented ? 0.5 : 1,
+                    marginBottom: 8,
+                  }}
+                >
+                  {submitting ? 'Saving…' : 'Mark client communications complete'}
+                </button>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                  {otherConfirmed
+                    ? `${otherFirst} has marked client communications complete. Confirm to advance.`
+                    : 'Both parties must confirm to advance to Book Transfer.'
+                  }
+                </div>
+              </>
+            )
+          )}
         </div>
       )}
     </div>
@@ -706,6 +1166,11 @@ export default function DealDetailPage() {
     badgeBg = '#F3F4F6'; badgeColor = '#9CA3AF'; badgeBorder = '#E5E7EB'
   } else if (isClosed) {
     badgeBg = '#D1FAE5'; badgeColor = '#065F46'; badgeBorder = '#6EE7B7'
+  }
+
+  async function refreshDeal() {
+    const data = await fetch(`/api/deals/${id}`).then(r => r.json())
+    if (data && !data.error) setDeal(data)
   }
 
   async function cancelDeal() {
@@ -772,13 +1237,8 @@ export default function DealDetailPage() {
           <div style={{ minHeight: 200 }}>
             {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
             {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
-            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} />}
-            {activeTab === 'Client Communications' && (
-              <PlaceholderTab
-                title="Client List"
-                description="Client roster and transition communication tracking will appear here."
-              />
-            )}
+            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
+            {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
             {activeTab === 'Notes' && (
               <NotesTab dealId={id} currentUserId={currentUserId} />
             )}

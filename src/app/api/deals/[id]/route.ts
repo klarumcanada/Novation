@@ -28,6 +28,8 @@ export async function GET(
       id, status, thread_id, created_at, updated_at,
       seller_id, buyer_id, mga_id,
       seller_confirmed_next, buyer_confirmed_next,
+      dd_complete_seller, dd_complete_buyer,
+      cc_complete_seller, cc_complete_buyer,
       loi_seller_signed, loi_buyer_signed,
       loi_seller_signed_at, loi_buyer_signed_at,
       seller:seller_id(id, full_name, avatar_url),

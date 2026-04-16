@@ -52,7 +52,7 @@ export async function GET(
 
   const { data: docs, error } = await supabase
     .from('deal_documents')
-    .select('id, filename, storage_path, uploader_id, created_at, uploader:uploader_id(full_name)')
+    .select('id, title, storage_path, uploader_id, created_at, uploader:uploader_id(full_name)')
     .eq('deal_id', id)
     .order('created_at', { ascending: false })
 
@@ -67,7 +67,7 @@ export async function GET(
       .createSignedUrl(doc.storage_path, 3600)
     return {
       id:            doc.id,
-      filename:      doc.filename,
+      title:         doc.title,
       storage_path:  doc.storage_path,
       uploader_name: uploaderObj?.full_name ?? 'Unknown',
       created_at:    doc.created_at,
@@ -93,8 +93,11 @@ export async function POST(
   if (!deal) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const formData = await req.formData()
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  const file  = formData.get('file')  as File   | null
+  const title = (formData.get('title') as string | null)?.trim()
+
+  if (!file)  return NextResponse.json({ error: 'No file provided' },   { status: 400 })
+  if (!title) return NextResponse.json({ error: 'Title is required' },  { status: 400 })
 
   const ALLOWED_TYPES = [
     'application/pdf',
@@ -105,9 +108,7 @@ export async function POST(
     return NextResponse.json({ error: 'Only PDF, DOCX, and PNG files are allowed.' }, { status: 400 })
   }
 
-  const filename    = file.name
-  const storagePath = `${id}/${Date.now()}-${filename}`
-
+  const storagePath = `${id}/${Date.now()}-${file.name}`
   const admin = makeAdmin()
 
   const { error: uploadError } = await admin.storage
@@ -118,7 +119,7 @@ export async function POST(
 
   const { data: doc, error: insertError } = await supabase
     .from('deal_documents')
-    .insert({ deal_id: id, filename, storage_path: storagePath, uploader_id: user.id })
+    .insert({ deal_id: id, title, storage_path: storagePath, uploader_id: user.id })
     .select()
     .single()
 
