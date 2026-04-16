@@ -60,7 +60,7 @@ export default function NovationNav() {
 
   return (
     <nav className="nov-nav">
-      <Link href="/profile" className="nov-logo">
+      <Link href="/dashboard" className="nov-logo">
         <div className="nov-logo-parent">
           <svg width="28" height="19" viewBox="0 0 44 30" fill="none">
             <rect x="1" y="1" width="3.5" height="28" fill="#0D1B3E" />

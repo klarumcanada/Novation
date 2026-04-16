@@ -476,6 +476,180 @@ function NotesTab({ dealId, currentUserId }: { dealId: string; currentUserId: st
   )
 }
 
+// ─── Due Diligence tab ───────────────────────────────────────────────────────
+type DealDocument = {
+  id: string
+  filename: string
+  storage_path: string
+  uploader_name: string
+  created_at: string
+  signed_url: string | null
+}
+
+function FileTypeIcon({ filename }: { filename: string }) {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  let color = '#9CA3AF'
+  let label = 'FILE'
+  if (ext === 'pdf')                  { color = '#E24B4A'; label = 'PDF' }
+  else if (ext === 'docx' || ext === 'doc') { color = '#3B82F6'; label = 'DOC' }
+  else if (ext === 'png')             { color = '#9CA3AF'; label = 'PNG' }
+
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+      background: color + '1A',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'DM Sans, sans-serif', fontSize: 9, fontWeight: 700,
+      color, letterSpacing: '0.05em',
+    }}>
+      {label}
+    </div>
+  )
+}
+
+function DueDiligenceTab({ dealId }: { dealId: string }) {
+  const [documents, setDocuments]   = useState<DealDocument[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [uploading, setUploading]   = useState(false)
+  const [dragOver, setDragOver]     = useState(false)
+  const fileInputRef                = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch(`/api/deals/${dealId}/documents`)
+      .then(r => r.json())
+      .then(d => { if (d.documents) setDocuments(d.documents) })
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  async function uploadFile(file: File) {
+    const ALLOWED = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/png',
+    ]
+    if (!ALLOWED.includes(file.type)) {
+      alert('Only PDF, DOCX, and PNG files are allowed.')
+      return
+    }
+    setUploading(true)
+    const form = new FormData()
+    form.append('file', file)
+    const res  = await fetch(`/api/deals/${dealId}/documents`, { method: 'POST', body: form })
+    const data = await res.json()
+    if (data.document) {
+      setDocuments(prev => [data.document, ...prev])
+    } else {
+      alert(data.error ?? 'Upload failed.')
+    }
+    setUploading(false)
+  }
+
+  function handleFiles(files: FileList | null) {
+    if (files && files.length > 0) uploadFile(files[0])
+  }
+
+  if (loading) return (
+    <div style={{ padding: '28px 32px', fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>
+      Loading…
+    </div>
+  )
+
+  return (
+    <div style={{ padding: '28px 32px' }}>
+
+      {/* Upload zone */}
+      <div
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+        style={{
+          border: `2px dashed ${dragOver ? BRAND.electric : '#E2E6F0'}`,
+          borderRadius: 10,
+          padding: 24,
+          textAlign: 'center',
+          cursor: uploading ? 'default' : 'pointer',
+          marginBottom: 24,
+          background: dragOver ? '#F5F8FF' : 'transparent',
+          transition: 'border-color 0.15s, background 0.15s',
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.png,image/png"
+          style={{ display: 'none' }}
+          disabled={uploading}
+          onChange={e => { handleFiles(e.target.files); e.target.value = '' }}
+        />
+        {uploading ? (
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+            Uploading…
+          </p>
+        ) : (
+          <>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: '0 0 4px' }}>
+              Drop a file or click to upload
+            </p>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#B4B2A9', margin: 0 }}>
+              PDF, DOCX, or PNG
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Document list */}
+      {documents.length === 0 ? (
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: 0 }}>
+          No documents uploaded yet.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {documents.map(doc => (
+            <div key={doc.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 14px',
+              border: `1px solid ${BRAND.border}`,
+              borderRadius: 10,
+              background: 'white',
+            }}>
+              <FileTypeIcon filename={doc.filename} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500,
+                  color: BRAND.midnight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {doc.filename}
+                </div>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                  {doc.uploader_name} · {new Date(doc.created_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
+              </div>
+              {doc.signed_url && (
+                <a
+                  href={doc.signed_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 14px',
+                    border: `1px solid ${BRAND.border}`,
+                    borderRadius: 7,
+                    fontFamily: 'DM Sans, sans-serif', fontSize: 12, fontWeight: 500,
+                    color: BRAND.midnight, textDecoration: 'none',
+                    whiteSpace: 'nowrap', flexShrink: 0, background: 'white',
+                  }}
+                >
+                  Open →
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -598,12 +772,7 @@ export default function DealDetailPage() {
           <div style={{ minHeight: 200 }}>
             {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
             {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
-            {activeTab === 'Due Diligence'         && (
-              <PlaceholderTab
-                title="Due Diligence"
-                description="Document requests, checklists, and data room access will appear here."
-              />
-            )}
+            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} />}
             {activeTab === 'Client Communications' && (
               <PlaceholderTab
                 title="Client List"
