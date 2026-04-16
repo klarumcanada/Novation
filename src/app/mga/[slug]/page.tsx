@@ -21,7 +21,7 @@ export default async function MgaDashboard({
     }
   )
 
-  // Get MGA
+  // MGA
   const { data: mga } = await supabase
     .from('mgas')
     .select('id, name')
@@ -30,134 +30,160 @@ export default async function MgaDashboard({
 
   if (!mga) return null
 
-  // Get counts by status
-  const { data: advisors } = await supabase
+  // Advisor counts by status
+  const { data: mgaAdvisors } = await supabase
     .from('mga_advisors')
-    .select('status, full_name, province')
+    .select('status')
     .eq('mga_id', mga.id)
 
-  const counts = {
-    pending: 0,
-    invited: 0,
-    registered: 0,
-    active: 0,
+  const advisorCounts = { pending: 0, invited: 0, registered: 0, active: 0 }
+  ;(mgaAdvisors ?? []).forEach(a => {
+    if (a.status in advisorCounts) advisorCounts[a.status as keyof typeof advisorCounts]++
+  })
+  const totalAdvisors = Object.values(advisorCounts).reduce((a, b) => a + b, 0)
+
+  // Deal counts via advisor IDs
+  const { data: advisors } = await supabase
+    .from('advisors')
+    .select('id')
+    .eq('mga_id', mga.id)
+
+  const advisorIds = (advisors ?? []).map(a => a.id)
+
+  const dealCounts = { new: 0, inProgress: 0, closed: 0 }
+
+  if (advisorIds.length > 0) {
+    const { data: deals } = await supabase
+      .from('deals')
+      .select('id, status, created_at')
+      .or(`seller_id.in.(${advisorIds.join(',')}),buyer_id.in.(${advisorIds.join(',')})`)
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    ;(deals ?? []).forEach(d => {
+      if (d.created_at >= cutoff) dealCounts.new++
+      if (d.status === 'closed' || d.status === 'canceled') dealCounts.closed++
+      else dealCounts.inProgress++
+    })
   }
 
-  advisors?.forEach((a) => {
-    if (a.status in counts) counts[a.status as keyof typeof counts]++
-  })
+  const sectionCard: React.CSSProperties = {
+    background: 'white',
+    border: '0.5px solid #E2E6F0',
+    borderRadius: 12,
+    padding: '24px 28px',
+    marginBottom: 20,
+  }
 
-  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  const statCard: React.CSSProperties = {
+    background: '#F0EDE7',
+    borderRadius: 10,
+    padding: '18px 20px',
+  }
 
   return (
-    <main className="mga-page">
-      <div className="mga-page-header-row">
-        <div>
-          <h1 className="mga-page-title">Dashboard</h1>
-          <p className="mga-page-sub">
-            {total} advisor{total !== 1 ? 's' : ''} in your Novation instance
+    <main style={{ background: '#F0EDE7', minHeight: '100vh', paddingBottom: '4rem' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 28px' }}>
+
+        {/* Page header */}
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{
+            fontFamily: 'Playfair Display, Georgia, serif',
+            fontSize: 28, fontWeight: 600, color: '#0D1B3E',
+            margin: '0 0 6px',
+          }}>
+            Dashboard
+          </h1>
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>
+            {mga.name} · {totalAdvisors} advisor{totalAdvisors !== 1 ? 's' : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <Link href={`/mga/${slug}/advisors/import`} className="mga-btn mga-btn--secondary">
-            Import advisors
-          </Link>
-          <Link href={`/mga/${slug}/advisors/new`} className="mga-btn mga-btn--primary">
-            + Add advisor
-          </Link>
-        </div>
-      </div>
 
-      <div className="mga-stat-grid">
-        <div className="mga-stat-card mga-stat-card--pending">
-          <div className="mga-stat-label">Pending</div>
-          <div className="mga-stat-value">{counts.pending}</div>
-          <div className="mga-stat-hint">Imported, not yet released</div>
-        </div>
-        <div className="mga-stat-card mga-stat-card--invited">
-          <div className="mga-stat-label">Invited</div>
-          <div className="mga-stat-value">{counts.invited}</div>
-          <div className="mga-stat-hint">Invite sent, awaiting signup</div>
-        </div>
-        <div className="mga-stat-card mga-stat-card--registered">
-          <div className="mga-stat-label">Registered</div>
-          <div className="mga-stat-value">{counts.registered}</div>
-          <div className="mga-stat-hint">Signed up, profile incomplete</div>
-        </div>
-        <div className="mga-stat-card mga-stat-card--active">
-          <div className="mga-stat-label">Active</div>
-          <div className="mga-stat-value">{counts.active}</div>
-          <div className="mga-stat-hint">Profile complete, on marketplace</div>
-        </div>
-      </div>
-
-      {total === 0 ? (
-        <div className="mga-card">
-          <div className="mga-empty">
-            <div className="mga-empty-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <div className="mga-empty-title">No advisors yet</div>
-            <div className="mga-empty-sub">
-              Import a CSV from your backoffice or add advisors one at a time.
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <Link href={`/mga/${slug}/advisors/import`} className="mga-btn mga-btn--secondary">
-                Import CSV
-              </Link>
-              <Link href={`/mga/${slug}/advisors/new`} className="mga-btn mga-btn--primary">
-                + Add advisor
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mga-card">
-          <div className="mga-table-toolbar">
-            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--midnight)' }}>
-              Recent activity
-            </span>
+        {/* ── Advisors section ── */}
+        <div style={sectionCard}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: 600, color: '#0D1B3E', margin: 0 }}>
+              Advisors
+            </h2>
             <Link
               href={`/mga/${slug}/advisors`}
-              className="mga-btn mga-btn--ghost mga-btn--sm"
-              style={{ marginLeft: 'auto' }}
+              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B82F6', textDecoration: 'none' }}
             >
-              View all →
+              View all advisors →
             </Link>
           </div>
-          <table className="mga-table">
-            <thead>
-              <tr>
-                <th>Advisor</th>
-                <th>Province</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {advisors?.slice(0, 5).map((a, i) => (
-                <tr key={i}>
-                  <td>
-                    <div className="mga-table-name">{a.full_name ?? '—'}</div>
-                  </td>
-                  <td>{a.province ?? '—'}</td>
-                  <td>
-                    <span className={`mga-status mga-status--${a.status}`}>
-                      {a.status}
-                    </span>
-                  </td>
-                  <td></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            {[
+              { label: 'Pending',    value: advisorCounts.pending,    hint: 'Imported, not yet released' },
+              { label: 'Invited',    value: advisorCounts.invited,    hint: 'Invite sent, awaiting signup' },
+              { label: 'Registered', value: advisorCounts.registered, hint: 'Signed up, profile incomplete' },
+              { label: 'Active',     value: advisorCounts.active,     hint: 'Profile complete, on marketplace' },
+            ].map(card => (
+              <div key={card.label} style={statCard}>
+                <div style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#888780', marginBottom: 8,
+                }}>
+                  {card.label}
+                </div>
+                <div style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 30, fontWeight: 600,
+                  color: '#0D1B3E', lineHeight: 1, marginBottom: 6,
+                }}>
+                  {card.value}
+                </div>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                  {card.hint}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* ── Deals section ── */}
+        <div style={sectionCard}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 15, fontWeight: 600, color: '#0D1B3E', margin: 0 }}>
+              Deals
+            </h2>
+            <Link
+              href={`/mga/${slug}/deals`}
+              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B82F6', textDecoration: 'none' }}
+            >
+              View all deals →
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            {[
+              { label: 'New',         value: dealCounts.new,        hint: 'Created in the last 24 hours' },
+              { label: 'In Progress', value: dealCounts.inProgress, hint: 'Active across all stages' },
+              { label: 'Closed',      value: dealCounts.closed,     hint: 'Completed or cancelled' },
+            ].map(card => (
+              <div key={card.label} style={statCard}>
+                <div style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#888780', marginBottom: 8,
+                }}>
+                  {card.label}
+                </div>
+                <div style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 30, fontWeight: 600,
+                  color: '#0D1B3E', lineHeight: 1, marginBottom: 6,
+                }}>
+                  {card.value}
+                </div>
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                  {card.hint}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
     </main>
   )
 }

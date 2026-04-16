@@ -41,7 +41,6 @@ export default async function MgaLayout({
   return (
     <div className="mga-layout">
       <MgaNav
-        mgaName={mga.name}
         mgaSlug={mga.slug}
         userEmail={user.email ?? ''}
       />
