@@ -1,171 +1,360 @@
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
-import Link from 'next/link'
+'use client'
 
-const STAGES = ['interested', 'loi', 'due_diligence', 'closed'] as const
-type Stage = typeof STAGES[number]
+import { useEffect, useState, useMemo } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
-const STAGE_LABELS: Record<Stage, string> = {
-  interested: 'Interested',
-  loi: 'Letter of Intent',
-  due_diligence: 'Due Diligence',
-  closed: 'Closed',
+// ── Stage config ─────────────────────────────────────────────────────────────
+
+type StageKey =
+  | 'interested'
+  | 'valuation_pending'
+  | 'valuation_shared'
+  | 'loi'
+  | 'due_diligence'
+  | 'client_communication'
+  | 'book_transfer'
+  | 'closed'
+  | 'canceled'
+
+const STAGE_LABEL: Record<StageKey, string> = {
+  interested:           'Interest',
+  valuation_pending:    'Valuation',
+  valuation_shared:     'Valuation',
+  loi:                  'Letter of Intent',
+  due_diligence:        'Due Diligence',
+  client_communication: 'Client Comms',
+  book_transfer:        'Book Transfer',
+  closed:               'Complete',
+  canceled:             'Cancelled',
 }
 
-const STAGE_COLORS: Record<Stage, { bg: string; color: string }> = {
-  interested: { bg: '#EFF6FF', color: '#1D4ED8' },
-  loi:        { bg: '#FEF9EC', color: '#92400E' },
-  due_diligence: { bg: '#F5F3FF', color: '#6D28D9' },
-  closed:     { bg: '#D1FAE5', color: '#065F46' },
+const STAGE_BADGE: Record<StageKey, { bg: string; color: string }> = {
+  interested:           { bg: '#E6F1FB', color: '#0C447C' },
+  valuation_pending:    { bg: '#E6F1FB', color: '#0C447C' },
+  valuation_shared:     { bg: '#E6F1FB', color: '#0C447C' },
+  loi:                  { bg: '#E6F1FB', color: '#0C447C' },
+  due_diligence:        { bg: '#E6F1FB', color: '#0C447C' },
+  client_communication: { bg: '#E6F1FB', color: '#0C447C' },
+  book_transfer:        { bg: '#E6F1FB', color: '#0C447C' },
+  closed:               { bg: '#EAF3DE', color: '#27500A' },
+  canceled:             { bg: '#F1EFE8', color: '#5F5E5A' },
 }
 
-function formatMoney(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
-  return `$${n.toLocaleString()}`
+// Options shown in the stage dropdown
+const STAGE_FILTER_OPTIONS: { label: string; value: string }[] = [
+  { label: 'All stages',       value: '' },
+  { label: 'Interest',         value: 'interested' },
+  { label: 'Valuation',        value: 'valuation' },       // matches both valuation_* statuses
+  { label: 'Letter of Intent', value: 'loi' },
+  { label: 'Due Diligence',    value: 'due_diligence' },
+  { label: 'Client Comms',     value: 'client_communication' },
+  { label: 'Book Transfer',    value: 'book_transfer' },
+  { label: 'Complete',         value: 'closed' },
+  { label: 'Cancelled',        value: 'canceled' },
+]
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type Deal = {
+  id: string
+  seller_id: string
+  buyer_id: string
+  status: StageKey
+  created_at: string
+  updated_at: string
 }
 
-export default async function MgaDealsPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
-  const cookieStore = await cookies()
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  const supabase = createServerClient(
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${mm}/${dd}/${yyyy}`
+}
+
+function stageMatchesFilter(status: StageKey, filter: string) {
+  if (!filter) return true
+  if (filter === 'valuation') return status === 'valuation_pending' || status === 'valuation_shared'
+  return status === filter
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const PAGE_BG = '#F0EDE7'
+const MIDNIGHT = '#0D1B3E'
+const BORDER   = '#E2E6F0'
+const ELECTRIC = '#3B82F6'
+const FONT     = 'DM Sans, sans-serif'
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: FONT, fontSize: 11, fontWeight: 700,
+  textTransform: 'uppercase', letterSpacing: '.08em',
+  color: '#9CA3AF', marginBottom: 8, display: 'block',
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '8px 10px', fontSize: 13,
+  fontFamily: FONT, borderRadius: 8,
+  border: `1.5px solid ${BORDER}`, background: 'white',
+  color: MIDNIGHT, outline: 'none', boxSizing: 'border-box',
+}
+
+const selectStyle: React.CSSProperties = { ...inputStyle }
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function MgaDealsPage() {
+  const params  = useParams()
+  const router  = useRouter()
+  const slug    = params.slug as string
+
+  const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const { data: mga } = await supabase
-    .from('mgas')
-    .select('id, name')
-    .eq('slug', slug)
-    .single()
+  const [deals,      setDeals]      = useState<Deal[]>([])
+  const [advisorMap, setAdvisorMap] = useState<Record<string, string>>({})
+  const [loading,    setLoading]    = useState(true)
 
-  if (!mga) return null
+  // Filter state
+  const [stageFilter,   setStageFilter]   = useState('')
+  const [advisorSearch, setAdvisorSearch] = useState('')
+  const [dateFrom,      setDateFrom]      = useState('')
+  const [dateTo,        setDateTo]        = useState('')
 
-  const { data: advisors } = await supabase
-    .from('advisors')
-    .select('id, full_name')
-    .eq('mga_id', mga.id)
+  useEffect(() => { loadData() }, [])
 
-  const advisorIds = (advisors ?? []).map(a => a.id)
-  const advisorMap = Object.fromEntries((advisors ?? []).map(a => [a.id, a.full_name]))
+  async function loadData() {
+    setLoading(true)
 
-  const { data: deals } = await supabase
-    .from('deals')
-    .select('*')
-    .or(advisorIds.length > 0 ? `seller_id.in.(${advisorIds.join(',')}),buyer_id.in.(${advisorIds.join(',')})` : 'id.is.null')
-    .order('updated_at', { ascending: false })
+    const { data: mga } = await supabase
+      .from('mgas')
+      .select('id')
+      .eq('slug', slug)
+      .single()
 
-  const dealIds = (deals ?? []).map(d => d.id)
+    if (!mga) { setLoading(false); return }
 
-  const { data: valuations } = await supabase
-    .from('book_valuations')
-    .select('deal_id, low_value, high_value, shared_with_buyer, advisor_id')
-    .in('deal_id', dealIds.length > 0 ? dealIds : ['none'])
+    const { data: advisors } = await supabase
+      .from('advisors')
+      .select('id, full_name')
+      .eq('mga_id', mga.id)
 
-  const valuationMap = Object.fromEntries((valuations ?? []).map(v => [v.deal_id, v]))
+    const ids = (advisors ?? []).map(a => a.id)
+    const map = Object.fromEntries((advisors ?? []).map(a => [a.id, a.full_name as string]))
+    setAdvisorMap(map)
 
-  const stageCounts = STAGES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {} as Record<Stage, number>)
-  ;(deals ?? []).forEach(d => { if (d.status in stageCounts) stageCounts[d.status as Stage]++ })
+    if (ids.length === 0) { setDeals([]); setLoading(false); return }
+
+    const { data } = await supabase
+      .from('deals')
+      .select('id, seller_id, buyer_id, status, created_at, updated_at')
+      .or(`seller_id.in.(${ids.join(',')}),buyer_id.in.(${ids.join(',')})`)
+      .order('updated_at', { ascending: false })
+
+    setDeals((data ?? []) as Deal[])
+    setLoading(false)
+  }
+
+  function clearFilters() {
+    setStageFilter('')
+    setAdvisorSearch('')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const filtered = useMemo(() => {
+    let result = deals
+
+    if (stageFilter) {
+      result = result.filter(d => stageMatchesFilter(d.status, stageFilter))
+    }
+
+    if (advisorSearch.trim()) {
+      const q = advisorSearch.toLowerCase()
+      result = result.filter(d => {
+        const seller = (advisorMap[d.seller_id] ?? '').toLowerCase()
+        const buyer  = (advisorMap[d.buyer_id]  ?? '').toLowerCase()
+        return seller.includes(q) || buyer.includes(q)
+      })
+    }
+
+    if (dateFrom) {
+      const from = new Date(dateFrom).getTime()
+      result = result.filter(d => new Date(d.created_at).getTime() >= from)
+    }
+
+    if (dateTo) {
+      // inclusive: end of the selected day
+      const to = new Date(dateTo).getTime() + 86_400_000 - 1
+      result = result.filter(d => new Date(d.created_at).getTime() <= to)
+    }
+
+    return result
+  }, [deals, stageFilter, advisorSearch, dateFrom, dateTo, advisorMap])
+
+  const hasActiveFilters = !!(stageFilter || advisorSearch.trim() || dateFrom || dateTo)
 
   return (
-    <main className="mga-page">
-      <div className="mga-page-header-row">
-        <div>
-          <h1 className="mga-page-title">Deals in Flight</h1>
-          <p className="mga-page-sub">{(deals ?? []).length} deal{(deals ?? []).length !== 1 ? 's' : ''} across your advisor network</p>
-        </div>
-      </div>
+    <main style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: '4rem' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 28px', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
 
-      {/* Stage summary */}
-      <div className="mga-stat-grid" style={{ marginBottom: '1.5rem' }}>
-        {STAGES.map(stage => (
-          <div key={stage} className="mga-stat-card" style={{ borderTop: `3px solid ${STAGE_COLORS[stage].color}` }}>
-            <div className="mga-stat-label">{STAGE_LABELS[stage]}</div>
-            <div className="mga-stat-value">{stageCounts[stage]}</div>
-            <div className="mga-stat-hint">active deals</div>
+        {/* ── Filter panel ── */}
+        <div style={{ width: 220, flexShrink: 0, position: 'sticky', top: 80 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: MIDNIGHT }}>
+              Filters
+            </span>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                style={{ background: 'none', border: 'none', fontSize: 12, color: ELECTRIC, cursor: 'pointer', fontFamily: FONT, padding: 0 }}
+              >
+                Clear all
+              </button>
+            )}
           </div>
-        ))}
-      </div>
 
-      {(deals ?? []).length === 0 ? (
-        <div className="mga-card">
-          <div className="mga-empty">
-            <div className="mga-empty-title">No deals yet</div>
-            <div className="mga-empty-sub">Deals will appear here once advisors begin the succession process.</div>
+          {/* Stage */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Stage</label>
+            <select
+              value={stageFilter}
+              onChange={e => setStageFilter(e.target.value)}
+              style={selectStyle}
+            >
+              {STAGE_FILTER_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Advisor name */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Advisor name</label>
+            <input
+              type="text"
+              placeholder="Search seller or buyer…"
+              value={advisorSearch}
+              onChange={e => setAdvisorSearch(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Date started */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Date started</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              style={{ ...inputStyle, marginBottom: 6 }}
+            />
+            <div style={{ fontFamily: FONT, fontSize: 11, color: '#9CA3AF', marginBottom: 6, paddingLeft: 2 }}>to</div>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              style={inputStyle}
+            />
           </div>
         </div>
-      ) : (
-        <div className="mga-card">
-          <table className="mga-table">
-            <thead>
-              <tr>
-                <th>Seller</th>
-                <th>Buyer</th>
-                <th>Stage</th>
-                <th>Book Value</th>
-                <th>Shared</th>
-                <th>Last Updated</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(deals ?? []).map(deal => {
-                const val = valuationMap[deal.id]
-                const colors = STAGE_COLORS[deal.status as Stage] ?? STAGE_COLORS.interested
-                return (
-                  <tr key={deal.id}>
-                    <td><div className="mga-table-name">{advisorMap[deal.seller_id] ?? '—'}</div></td>
-                    <td><div className="mga-table-name">{advisorMap[deal.buyer_id] ?? '—'}</div></td>
-                    <td>
-                      <span className="mga-status" style={{ background: colors.bg, color: colors.color }}>
-                        {STAGE_LABELS[deal.status as Stage] ?? deal.status}
-                      </span>
-                    </td>
-                    <td>
-                      {val
-                        ? <span style={{ fontWeight: 600, color: '#0D1B3E', fontSize: '13px' }}>{formatMoney(val.low_value)} – {formatMoney(val.high_value)}</span>
-                        : <span style={{ color: '#9CA3AF', fontSize: '13px' }}>Not calculated</span>
-                      }
-                    </td>
-                    <td>
-                      {val
-                        ? val.shared_with_buyer
-                          ? <span style={{ color: '#065F46', fontSize: '12px', fontWeight: 500 }}>✓ Shared</span>
-                          : <span style={{ color: '#9CA3AF', fontSize: '12px' }}>Not shared</span>
-                        : <span style={{ color: '#E5E7EB', fontSize: '12px' }}>—</span>
-                      }
-                    </td>
-                    <td style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                      {new Date(deal.updated_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td>
-                      {val && (
-                        <Link
-                          href={`/mga/${slug}/valuations/${deal.seller_id}`}
-                          style={{ fontSize: '12px', color: '#3B82F6', fontWeight: 500, textDecoration: 'none' }}
-                        >
-                          View report →
-                        </Link>
-                      )}
-                    </td>
+
+        {/* ── Main content ── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Page header */}
+          <div style={{ marginBottom: 24 }}>
+            <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 28, fontWeight: 600, color: MIDNIGHT, margin: '0 0 4px' }}>
+              Deals
+            </h1>
+            <p style={{ fontFamily: FONT, fontSize: 14, color: '#9CA3AF', margin: 0 }}>
+              {loading ? 'Loading…' : `${filtered.length} deal${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ' across your advisor network'}`}
+            </p>
+          </div>
+
+          {/* Table card */}
+          <div style={{ background: 'white', border: `0.5px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden' }}>
+            {loading ? (
+              <div style={{ padding: '3rem', fontFamily: FONT, fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>
+                Loading deals…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center' }}>
+                <div style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: MIDNIGHT, marginBottom: 6 }}>
+                  No deals found
+                </div>
+                <div style={{ fontFamily: FONT, fontSize: 13, color: '#9CA3AF' }}>
+                  {hasActiveFilters ? 'Try adjusting your filters.' : 'Deals will appear here once advisors begin the succession process.'}
+                </div>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: FONT }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    {['Seller', 'Buyer', 'Stage', 'Started', 'Last activity'].map(col => (
+                      <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+                        {col}
+                      </th>
+                    ))}
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {filtered.map((deal, i) => {
+                    const badge = STAGE_BADGE[deal.status] ?? STAGE_BADGE.interested
+                    const label = STAGE_LABEL[deal.status] ?? deal.status
+                    return (
+                      <tr
+                        key={deal.id}
+                        onClick={() => router.push(`/mga/${slug}/deals/${deal.id}`)}
+                        style={{
+                          borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none',
+                          cursor: 'pointer',
+                          transition: 'background .1s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = '#FAFAF9' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
+                      >
+                        <td style={{ padding: '14px 16px', fontSize: 13, color: MIDNIGHT, fontWeight: 500 }}>
+                          {advisorMap[deal.seller_id] ?? '—'}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: 13, color: MIDNIGHT }}>
+                          {advisorMap[deal.buyer_id] ?? '—'}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '3px 9px',
+                            borderRadius: 20,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: '.03em',
+                            background: badge.bg,
+                            color: badge.color,
+                          }}>
+                            {label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: 13, color: '#6B7280' }}>
+                          {fmtDate(deal.created_at)}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: 13, color: '#6B7280' }}>
+                          {fmtDate(deal.updated_at)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      )}
+
+      </div>
     </main>
   )
 }
