@@ -202,7 +202,17 @@ export default function MgaDealsPage() {
 
   return (
     <main style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: '4rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 28px', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+      {/* Page header — full width, above the two-column layout */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 28px 0' }}>
+        <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 28, fontWeight: 600, color: MIDNIGHT, margin: '0 0 4px' }}>
+          Deals
+        </h1>
+        <p style={{ fontFamily: FONT, fontSize: 14, color: '#9CA3AF', margin: '0 0 24px' }}>
+          {loading ? 'Loading…' : `${filtered.length} deal${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ' across your advisor network'}`}
+        </p>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 28px 0', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
 
         {/* ── Filter panel ── */}
         <div style={{ width: 220, flexShrink: 0, position: 'sticky', top: 80 }}>
@@ -267,16 +277,6 @@ export default function MgaDealsPage() {
 
         {/* ── Main content ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Page header */}
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 28, fontWeight: 600, color: MIDNIGHT, margin: '0 0 4px' }}>
-              Deals
-            </h1>
-            <p style={{ fontFamily: FONT, fontSize: 14, color: '#9CA3AF', margin: 0 }}>
-              {loading ? 'Loading…' : `${filtered.length} deal${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ' across your advisor network'}`}
-            </p>
-          </div>
-
           {/* Table card */}
           <div style={{ background: 'white', border: `0.5px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden' }}>
             {loading ? (
