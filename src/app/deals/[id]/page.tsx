@@ -551,7 +551,7 @@ export default function DealDetailPage() {
   return (
     <div style={{ background: BRAND.chalk, minHeight: '100vh', paddingBottom: '4rem' }}>
       <NovationNav />
-      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '2rem 1.5rem' }}>
 
         {/* Back */}
         <button
