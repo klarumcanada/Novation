@@ -5,10 +5,40 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useRef, useState } from 'react'
 
+function dealNeedsAction(deal: any, userId: string): boolean {
+  const isSeller = deal.seller_id === userId
+  const isBuyer  = deal.buyer_id  === userId
+  if (!isSeller && !isBuyer) return false
+
+  switch (deal.status) {
+    case 'interested':
+    case 'valuation_pending':
+    case 'valuation_shared': {
+      const myFlag = isSeller ? deal.seller_confirmed_next : deal.buyer_confirmed_next
+      return !myFlag
+    }
+    case 'loi': {
+      const mySigned = isSeller ? deal.loi_seller_signed : deal.loi_buyer_signed
+      return !mySigned
+    }
+    case 'due_diligence': {
+      const myFlag = isSeller ? deal.dd_complete_seller : deal.dd_complete_buyer
+      return !myFlag
+    }
+    case 'client_communication': {
+      const myFlag = isSeller ? deal.cc_complete_seller : deal.cc_complete_buyer
+      return !myFlag
+    }
+    default:
+      return false
+  }
+}
+
 export default function NovationNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [actionCount, setActionCount] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -18,10 +48,11 @@ export default function NovationNav() {
   )
 
   useEffect(() => {
-    async function fetchUnread() {
+    async function fetchCounts() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // Unread messages
       const { count: rootUnread } = await supabase
         .from('messages')
         .select('id', { count: 'exact', head: true })
@@ -37,8 +68,24 @@ export default function NovationNav() {
         .is('read_at', null)
 
       setUnreadCount((rootUnread ?? 0) + (replyUnread ?? 0))
+
+      // Deals requiring action
+      const { data: deals } = await supabase
+        .from('deals')
+        .select(`
+          id, status, seller_id, buyer_id,
+          seller_confirmed_next, buyer_confirmed_next,
+          loi_seller_signed, loi_buyer_signed,
+          dd_complete_seller, dd_complete_buyer,
+          cc_complete_seller, cc_complete_buyer
+        `)
+        .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`)
+        .not('status', 'in', '("canceled","closed")')
+
+      const count = (deals ?? []).filter(d => dealNeedsAction(d, user.id)).length
+      setActionCount(count)
     }
-    fetchUnread()
+    fetchCounts()
   }, [pathname])
 
   // Close settings dropdown on outside click
@@ -100,8 +147,18 @@ export default function NovationNav() {
             </span>
           )}
         </Link>
-        <Link href="/deals" className={`nov-nav-link ${pathname.startsWith('/deals') ? 'active' : ''}`}>
+        <Link href="/deals" className={`nov-nav-link ${pathname.startsWith('/deals') ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
           Deals
+          {actionCount > 0 && (
+            <span style={{
+              background: '#E24B4A', color: 'white',
+              borderRadius: '20px', padding: '2px 7px',
+              fontSize: '11px', fontWeight: 600,
+              marginLeft: '5px', lineHeight: '16px',
+            }}>
+              {actionCount}
+            </span>
+          )}
         </Link>
 
         {/* Settings */}
