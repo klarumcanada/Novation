@@ -804,31 +804,47 @@ function parseCSV(text: string): Array<{ client_name: string; client_email: stri
   }).filter(c => c.client_name && c.client_email)
 }
 
-function ConsentPill({ status }: { status: string }) {
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    pending:   { bg: '#F3F4F6', color: '#6B7280', label: 'Pending' },
+function ClientStatusPill({ client }: { client: DealClient }) {
+  // Determine effective status: if email sent but consent still pending → 'sent'
+  const effective = client.consent_status !== 'pending'
+    ? client.consent_status
+    : client.email_sent_at ? 'sent' : 'pending'
+
+  type PillStyle = { bg: string; color: string; label: string }
+  const styles: Record<string, PillStyle> = {
+    pending:   { bg: '#F3F4F6', color: '#6B7280', label: 'Pending'   },
+    sent:      { bg: '#DBEAFE', color: '#1E40AF', label: 'Sent'      },
     consented: { bg: '#D1FAE5', color: '#065F46', label: 'Consented' },
-    refused:   { bg: '#FEE2E2', color: '#991B1B', label: 'Refused'  },
+    refused:   { bg: '#FEE2E2', color: '#991B1B', label: 'Refused'   },
   }
-  const s = styles[status] ?? styles.pending
+  const s = styles[effective] ?? styles.pending
+
+  let dateStr = ''
+  if (effective === 'sent' && client.email_sent_at) {
+    dateStr = new Date(client.email_sent_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+  } else if ((effective === 'consented' || effective === 'refused') && client.consent_responded_at) {
+    dateStr = new Date(client.consent_responded_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+  }
+
   return (
     <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 100, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
-      {s.label}
+      {s.label}{dateStr ? ` · ${dateStr}` : ''}
     </span>
   )
 }
 
 function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
-  const [clients, setClients]         = useState<DealClient[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [addMode, setAddMode]         = useState<'single' | 'csv' | null>(null)
-  const [singleName, setSingleName]   = useState('')
-  const [singleEmail, setSingleEmail] = useState('')
+  const [clients, setClients]           = useState<DealClient[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [subTab, setSubTab]             = useState<'clients' | 'email'>('clients')
+  const [addMode, setAddMode]           = useState<'single' | 'csv' | null>(null)
+  const [singleName, setSingleName]     = useState('')
+  const [singleEmail, setSingleEmail]   = useState('')
   const [addingClient, setAddingClient] = useState(false)
-  const [subject, setSubject]         = useState(DEFAULT_SUBJECT)
-  const [body, setBody]               = useState(DEFAULT_BODY)
-  const [sending, setSending]         = useState(false)
-  const [submitting, setSubmitting]   = useState(false)
+  const [subject, setSubject]           = useState(DEFAULT_SUBJECT)
+  const [body, setBody]                 = useState(DEFAULT_BODY)
+  const [sending, setSending]           = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
 
   useEffect(() => {
     fetch(`/api/deals/${dealId}/clients`)
@@ -922,104 +938,171 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
   const otherParty     = deal.is_seller ? deal.buyer : deal.seller
   const otherFirst     = otherParty?.full_name?.split(' ')[0] ?? 'the other party'
 
+  const pillActive   = { background: BRAND.midnight, color: 'white',    borderRadius: 20, padding: '6px 16px', fontSize: 13, border: 'none',                         fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' } as const
+  const pillInactive = { background: 'transparent',  color: '#888780',  borderRadius: 20, padding: '6px 16px', fontSize: 13, border: `1px solid ${BRAND.border}`,    fontFamily: 'DM Sans, sans-serif', fontWeight: 400, cursor: 'pointer' } as const
+
   return (
     <div style={{ padding: '28px 32px' }}>
 
-      {/* ── Section 1: Client list ── */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
-          Your clients
-        </div>
-
-        {/* Add-mode buttons */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          {(['single', 'csv'] as const).map(mode => {
-            const label = mode === 'single' ? 'Add one by one' : 'Upload CSV'
-            const active = addMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setAddMode(active ? null : mode)}
-                style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: active ? BRAND.midnight : 'white', color: active ? 'white' : BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
-              >
-                {label}
-              </button>
-            )
-          })}
-          <button disabled style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: '#C4C4C4', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'not-allowed' }}>
-            MGA import&nbsp;<span style={{ fontSize: 10 }}>Coming soon</span>
-          </button>
-        </div>
-
-        {/* Single add form */}
-        {addMode === 'single' && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <input
-              type="text" value={singleName} onChange={e => setSingleName(e.target.value)}
-              placeholder="Client name"
-              style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
-            />
-            <input
-              type="email" value={singleEmail} onChange={e => setSingleEmail(e.target.value)}
-              placeholder="Email address"
-              onKeyDown={e => e.key === 'Enter' && addSingleClient()}
-              style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
-            />
-            <button
-              onClick={addSingleClient}
-              disabled={addingClient || !singleName.trim() || !singleEmail.trim()}
-              style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              {addingClient ? '…' : 'Add'}
-            </button>
-          </div>
-        )}
-
-        {/* CSV upload */}
-        {addMode === 'csv' && (
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="file" accept=".csv,text/csv"
-              onChange={e => { if (e.target.files?.[0]) handleCSV(e.target.files[0]); e.target.value = '' }}
-              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13 }}
-            />
-            <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
-              CSV must have "name" and "email" columns.
-            </div>
-          </div>
-        )}
-
-        {/* Client rows */}
-        {clients.length === 0 ? (
-          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
-            No clients added yet.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {clients.map(client => (
-              <div key={client.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${BRAND.border}`, borderRadius: 10, background: 'white' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight }}>{client.client_name}</div>
-                  <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{client.client_email}</div>
-                </div>
-                <ConsentPill status={client.consent_status} />
-                {client.email_sent_at && (
-                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
-                    Sent {new Date(client.email_sent_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ── Sub-tab pill toggle ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+        <button onClick={() => setSubTab('clients')} style={subTab === 'clients' ? pillActive : pillInactive}>
+          Clients
+        </button>
+        <button onClick={() => setSubTab('email')} style={subTab === 'email' ? pillActive : pillInactive}>
+          Email template
+        </button>
       </div>
 
-      {/* ── Section 2: Email template ── */}
-      {clients.length > 0 && (
-        <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 28, marginBottom: 32 }}>
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
-            Email template
+      {/* ── Sub-tab 1: Clients ── */}
+      {subTab === 'clients' && (
+        <div>
+          {/* Add-mode buttons */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {(['single', 'csv'] as const).map(mode => {
+              const label  = mode === 'single' ? 'Add one by one' : 'Upload CSV'
+              const active = addMode === mode
+              return (
+                <button
+                  key={mode}
+                  onClick={() => setAddMode(active ? null : mode)}
+                  style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: active ? BRAND.midnight : 'white', color: active ? 'white' : BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+            <button disabled style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: '#C4C4C4', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'not-allowed' }}>
+              MGA import&nbsp;<span style={{ fontSize: 10 }}>Coming soon</span>
+            </button>
           </div>
+
+          {/* Single add form */}
+          {addMode === 'single' && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <input
+                type="text" value={singleName} onChange={e => setSingleName(e.target.value)}
+                placeholder="Client name"
+                style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
+              />
+              <input
+                type="email" value={singleEmail} onChange={e => setSingleEmail(e.target.value)}
+                placeholder="Email address"
+                onKeyDown={e => e.key === 'Enter' && addSingleClient()}
+                style={{ flex: 1, minWidth: 160, padding: '9px 12px', borderRadius: 8, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: BRAND.midnight, outline: 'none' }}
+              />
+              <button
+                onClick={addSingleClient}
+                disabled={addingClient || !singleName.trim() || !singleEmail.trim()}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {addingClient ? '…' : 'Add'}
+              </button>
+            </div>
+          )}
+
+          {/* CSV upload */}
+          {addMode === 'csv' && (
+            <div style={{ marginBottom: 16 }}>
+              <input
+                type="file" accept=".csv,text/csv"
+                onChange={e => { if (e.target.files?.[0]) handleCSV(e.target.files[0]); e.target.value = '' }}
+                style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13 }}
+              />
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
+                CSV must have "name" and "email" columns.
+              </div>
+            </div>
+          )}
+
+          {/* Client rows */}
+          {clients.length === 0 ? (
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+              No clients added yet.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>
+              {clients.map(client => (
+                <div key={client.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${BRAND.border}`, borderRadius: 10, background: 'white' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight }}>{client.client_name}</div>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{client.client_email}</div>
+                  </div>
+                  <ClientStatusPill client={client} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Consent summary + CC complete — shown once any email has been sent */}
+          {anyEmailSent && (
+            <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 24 }}>
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
+                Consent summary
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                {[
+                  { label: 'Pending',   value: pendingCount,   red: false },
+                  { label: 'Consented', value: consentedCount, red: false },
+                  { label: 'Refused',   value: refusedCount,   red: refusedCount > 0 },
+                ].map(card => (
+                  <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#888780', marginBottom: 4 }}>
+                      {card.label}
+                    </div>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, lineHeight: 1, color: card.red ? '#E24B4A' : BRAND.midnight }}>
+                      {card.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
+                All parties must consent before advancing to Book Transfer.
+              </div>
+
+              {deal.status === 'client_communication' && (
+                myConfirmed ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
+                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
+                      You've marked client communications complete. Waiting for {otherFirst} to confirm.
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={markCCComplete}
+                      disabled={submitting || !allConsented}
+                      style={{
+                        padding: '9px 20px', borderRadius: 8, border: 'none',
+                        background: BRAND.midnight, color: 'white',
+                        fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif',
+                        cursor: submitting || !allConsented ? 'not-allowed' : 'pointer',
+                        opacity: !allConsented ? 0.5 : 1,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {submitting ? 'Saving…' : 'Mark client communications complete'}
+                    </button>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                      {otherConfirmed
+                        ? `${otherFirst} has marked client communications complete. Confirm to advance.`
+                        : 'Both parties must confirm to advance to Book Transfer.'
+                      }
+                    </div>
+                  </>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Sub-tab 2: Email template ── */}
+      {subTab === 'email' && (
+        <div>
           <input
             type="text" value={subject} onChange={e => setSubject(e.target.value)}
             style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10, border: `1px solid ${BRAND.border}`, borderRadius: 8, fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500, color: BRAND.midnight, outline: 'none' }}
@@ -1036,74 +1119,8 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
             disabled={sending || !anyUnsent}
             style={{ padding: '10px 22px', border: 'none', borderRadius: 8, background: anyUnsent ? BRAND.midnight : '#E5E7EB', color: anyUnsent ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: anyUnsent && !sending ? 'pointer' : 'not-allowed' }}
           >
-            {sending ? 'Sending…' : 'Send to all'}
+            {sending ? 'Sending…' : 'Send to all unsent clients'}
           </button>
-        </div>
-      )}
-
-      {/* ── Section 3: Consent summary ── */}
-      {anyEmailSent && (
-        <div style={{ borderTop: `1px solid ${BRAND.border}`, paddingTop: 28 }}>
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 14 }}>
-            Consent summary
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            {[
-              { label: 'Pending',   value: pendingCount,   red: false },
-              { label: 'Consented', value: consentedCount, red: false },
-              { label: 'Refused',   value: refusedCount,   red: refusedCount > 0 },
-            ].map(card => (
-              <div key={card.label} style={{ flex: 1, background: 'white', border: `1px solid ${BRAND.border}`, borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#888780', marginBottom: 4 }}>
-                  {card.label}
-                </div>
-                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 24, fontWeight: 600, lineHeight: 1, color: card.red ? '#E24B4A' : BRAND.midnight }}>
-                  {card.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>
-            All parties must consent before advancing to Book Transfer.
-          </div>
-
-          {deal.status === 'client_communication' && (
-            myConfirmed ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#3B6D11' }}>
-                  You've marked client communications complete. Waiting for {otherFirst} to confirm.
-                </span>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={markCCComplete}
-                  disabled={submitting || !allConsented}
-                  style={{
-                    padding: '9px 20px', borderRadius: 8,
-                    border: otherConfirmed ? 'none' : `1px solid ${BRAND.border}`,
-                    background: otherConfirmed ? BRAND.midnight : 'white',
-                    color: otherConfirmed ? 'white' : BRAND.midnight,
-                    fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif',
-                    cursor: submitting || !allConsented ? 'not-allowed' : 'pointer',
-                    opacity: !allConsented ? 0.5 : 1,
-                    marginBottom: 8,
-                  }}
-                >
-                  {submitting ? 'Saving…' : 'Mark client communications complete'}
-                </button>
-                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
-                  {otherConfirmed
-                    ? `${otherFirst} has marked client communications complete. Confirm to advance.`
-                    : 'Both parties must confirm to advance to Book Transfer.'
-                  }
-                </div>
-              </>
-            )
-          )}
         </div>
       )}
     </div>
