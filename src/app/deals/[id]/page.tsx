@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
+import { importClientsFromMGA } from './actions'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -894,7 +895,8 @@ function CCModalOverlay({ onClose, children }: { onClose: () => void; children: 
 
 function ImportModal({ onClose, onConfirm, importing }: { onClose: () => void; onConfirm: () => void; importing: boolean }) {
   return (
-    <CCModalOverlay onClose={onClose}>
+    <CCModalOverlay onClose={importing ? () => {} : onClose}>
+      <style>{`@keyframes mga-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
         <div style={{ fontSize: 16, fontWeight: 600, color: BRAND.midnight, marginBottom: 10 }}>Import client list from MGA</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 1.6 }}>The following fields will be imported from your MGA:</div>
@@ -905,10 +907,16 @@ function ImportModal({ onClose, onConfirm, importing }: { onClose: () => void; o
           <li>Policy ID</li>
         </ul>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+          <button onClick={onClose} disabled={importing} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.5 : 1 }}>
             Cancel
           </button>
-          <button onClick={onConfirm} disabled={importing} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+          <button onClick={onConfirm} disabled={importing} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.8 : 1 }}>
+            {importing && (
+              <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: 'mga-spin 0.75s linear infinite', flexShrink: 0 }}>
+                <circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" />
+                <path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
             {importing ? 'Importing…' : 'Confirm & import'}
           </button>
         </div>
@@ -1074,16 +1082,11 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
   async function runImport() {
     setImporting(true)
     try {
-      const res  = await fetch(`/api/deals/${dealId}/clients/mga-import`, { method: 'POST' })
-      const data = await res.json()
-      if (res.ok && data.clients) {
-        setClients(data.clients)
-        setShowImport(false)
-      } else {
-        alert(data.error ?? 'Import failed. Please try again.')
-      }
-    } catch {
-      alert('Import failed. Please try again.')
+      const result = await importClientsFromMGA(dealId)
+      setClients(result.clients)
+      setShowImport(false)
+    } catch (e) {
+      alert((e as Error).message ?? 'Import failed. Please try again.')
     }
     setImporting(false)
   }
