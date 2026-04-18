@@ -48,9 +48,12 @@ export async function GET(
   const deal = await verifyParticipant(supabase, id, user.id)
   if (!deal) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-  const { data: clients, error } = await supabase
+  // Auth + participant check done above — use admin client so RLS doesn't
+  // silently block rows that were inserted via admin on the write path.
+  const admin = makeAdmin()
+  const { data: clients, error } = await admin
     .from('deal_clients')
-    .select('id, client_name, client_email, consent_status, consent_responded_at, email_sent_at, created_at')
+    .select('id, client_name, client_email, carrier, policy_id, consent_status, consent_responded_at, email_sent_at, created_at')
     .eq('deal_id', id)
     .order('created_at', { ascending: true })
 
