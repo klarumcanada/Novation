@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 import { SPECIALTIES, CARRIERS } from '@/lib/validations'
 
 type Intent = 'selling' | 'buying'
@@ -80,12 +81,21 @@ function fmt(n: number) {
 export default function OnboardingPage() {
   const router = useRouter()
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
   const [intent, setIntent] = useState<Intent | null>(null)
   const [specialties, setSpecialties] = useState<string[]>([])
   const [carriers, setCarriers] = useState<string[]>([])
   const [bio, setBio] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null)
+  const [uploading, setUploading]   = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   // Seller fields
   const [aum, setAum] = useState('')
@@ -110,6 +120,21 @@ export default function OnboardingPage() {
   const [acquisitionTimeline, setAcquisitionTimeline] = useState('')
   const [buyerTargetProvinces, setBuyerTargetProvinces] = useState<string[]>([])
   const [buyerTargetCities, setBuyerTargetCities] = useState<string[]>([])
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploading(false); return }
+    const ext  = file.name.split('.').pop()
+    const path = `${user.id}/avatar.${ext}`
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (uploadError) { setError(`Upload failed: ${uploadError.message}`); setUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    setAvatarUrl(`${publicUrl}?t=${Date.now()}`)
+    setUploading(false)
+  }
 
   function toggleMulti(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
@@ -146,6 +171,7 @@ export default function OnboardingPage() {
       specialties,
       carrier_affiliations: carriers,
       bio,
+      avatar_url: avatarUrl ?? undefined,
     }
 
     if (intent === 'selling') {
@@ -211,6 +237,36 @@ export default function OnboardingPage() {
             Fields marked <span style={{ color: '#DC2626' }}>*</span> are required.
           </p>
         </div>
+
+        {/* Profile photo */}
+        <Field label="Profile photo">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+              background: BRAND.ice, border: '2px solid #E5E7EB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontSize: 24, color: BRAND.navy, opacity: 0.4 }}>+</span>
+              }
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading}
+                style={{ padding: '8px 16px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: `1.5px solid ${BRAND.electric}`, background: BRAND.ice, color: BRAND.navy, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}
+              >
+                {uploading ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Upload photo'}
+              </button>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginTop: '4px', marginBottom: 0 }}>
+                JPG or PNG, max 5MB
+              </p>
+            </div>
+            <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+          </div>
+        </Field>
 
         {/* Intent */}
         <Field label="I am looking to" required>

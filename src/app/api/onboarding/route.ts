@@ -39,23 +39,26 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const update: Record<string, unknown> = {
+    intent,
+    specialties,
+    carrier_affiliations,
+    bio,
+    onboarding_complete: true,
+    aum: body.aum ?? null,
+    client_count: body.client_count ?? null,
+    target_provinces: body.target_provinces ?? null,
+    target_cities: body.target_cities ?? null,
+    transition_duration: body.transition_duration ?? null,
+    willing_to_stay: body.willing_to_stay ?? null,
+    acquisition_budget: body.acquisition_budget ?? null,
+    acquisition_timeline: body.acquisition_timeline ?? null,
+  }
+  if (body.avatar_url) update.avatar_url = body.avatar_url
+
   const { data, error } = await admin
     .from('advisors')
-    .update({
-      intent,
-      specialties,
-      carrier_affiliations,
-      bio,
-      onboarding_complete: true,
-      aum: body.aum ?? null,
-      client_count: body.client_count ?? null,
-      target_provinces: body.target_provinces ?? null,
-      target_cities: body.target_cities ?? null,
-      transition_duration: body.transition_duration ?? null,
-      willing_to_stay: body.willing_to_stay ?? null,
-      acquisition_budget: body.acquisition_budget ?? null,
-      acquisition_timeline: body.acquisition_timeline ?? null,
-    })
+    .update(update)
     .eq('id', user.id)
     .select()
 
