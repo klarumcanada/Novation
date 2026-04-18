@@ -25,13 +25,13 @@ const STAGE_LABELS: Record<string, string> = {
 }
 
 const STAGE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  interested:           { bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
-  valuation_pending:    { bg: '#FEF9EC', color: '#92400E', border: '#FDE68A' },
-  valuation_shared:     { bg: '#FEF9EC', color: '#92400E', border: '#FDE68A' },
-  loi:                  { bg: '#DBEAFE', color: '#1A3266', border: '#BFDBFE' },
-  due_diligence:        { bg: '#DBEAFE', color: '#1A3266', border: '#BFDBFE' },
-  client_communication: { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
-  book_transfer:        { bg: '#EDE9FE', color: '#4C1D95', border: '#DDD6FE' },
+  interested:           { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  valuation_pending:    { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  valuation_shared:     { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  loi:                  { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  due_diligence:        { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  client_communication: { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
+  book_transfer:        { bg: '#E6F1FB', color: '#185FA5', border: '#B5D4F4' },
   closed:               { bg: '#D1FAE5', color: '#065F46', border: '#6EE7B7' },
   canceled:             { bg: '#F3F4F6', color: '#9CA3AF', border: '#E5E7EB' },
 }

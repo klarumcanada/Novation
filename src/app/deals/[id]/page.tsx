@@ -138,6 +138,7 @@ const TAB_STAGE_IDX: Partial<Record<Tab, number>> = {
 
 function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: Tab) => void; dealStatus: string }) {
   const currentIdx = stageIndex(dealStatus)
+  const isCanceled = dealStatus === 'canceled'
 
   return (
     <div style={{
@@ -151,13 +152,16 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
       {TABS.map(tab => {
         const isActive  = active === tab
         const stageIdx  = TAB_STAGE_IDX[tab]
-        // Notes is always in "done" style; other tabs done when their stage is passed
+        // Locked: future stage on an active deal (canceled deals unlock everything)
+        const isLocked  = !isCanceled && stageIdx !== undefined && stageIdx > currentIdx
         const isDone    = tab === 'Notes' || (stageIdx !== undefined && currentIdx > stageIdx)
 
         let bg: string, color: string, fontWeight: number
 
         if (isActive) {
           bg = 'white'; color = BRAND.midnight; fontWeight = 600
+        } else if (isLocked) {
+          bg = '#F7F7F6'; color = '#C9C7C0'; fontWeight = 400
         } else if (isDone) {
           bg = '#F5F8FF'; color = BRAND.electric; fontWeight = 400
         } else {
@@ -167,7 +171,7 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
         return (
           <button
             key={tab}
-            onClick={() => onChange(tab)}
+            onClick={() => { if (!isLocked) onChange(tab) }}
             style={{
               padding: '9px 15px',
               marginTop: 12,
@@ -179,7 +183,7 @@ function TabBar({ active, onChange, dealStatus }: { active: Tab; onChange: (t: T
               fontSize: '13px',
               fontWeight,
               color,
-              cursor: 'pointer',
+              cursor: isLocked ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap',
               marginBottom: -1,
               position: 'relative',
@@ -215,11 +219,11 @@ function ValuationTab({ deal }: { deal: any }) {
   const router = useRouter()
 
   useEffect(() => {
-    fetch('/api/valuations')
+    fetch(`/api/deals/${deal.id}/valuation`)
       .then(r => r.json())
       .then(d => { if (d && !d.error) setValuation(d) })
       .finally(() => setLoading(false))
-  }, [])
+  }, [deal.id])
 
   if (loading) return <div style={{ padding: 24, fontFamily: 'DM Sans, sans-serif', color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
 
@@ -509,7 +513,7 @@ function FileTypeIcon({ storagePath }: { storagePath: string }) {
   )
 }
 
-function DueDiligenceTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
+function DueDiligenceTab({ dealId, deal, onRefresh, canceled }: { dealId: string; deal: any; onRefresh: () => void; canceled?: boolean }) {
   const [documents, setDocuments]   = useState<DealDocument[]>([])
   const [loading, setLoading]       = useState(true)
   const [uploading, setUploading]   = useState(false)
@@ -570,8 +574,8 @@ function DueDiligenceTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
   return (
     <div style={{ padding: '28px 32px' }}>
 
-      {/* Upload zone */}
-      <div
+      {/* Upload zone — hidden for cancelled deals */}
+      {!canceled && <div
         onClick={() => !uploading && !pendingFile && fileInputRef.current?.click()}
         onDragOver={e => { e.preventDefault(); if (!pendingFile) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -601,7 +605,7 @@ function DueDiligenceTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
         <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#B4B2A9', margin: 0 }}>
           PDF, DOCX, or PNG
         </p>
-      </div>
+      </div>}
 
       {/* Staging area — shown when a file is selected but not yet uploaded */}
       {pendingFile && (
@@ -1032,7 +1036,7 @@ function SendEmailModal({ clients, defaultTemplate, onClose, onConfirm, sending 
   )
 }
 
-function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; deal: any; onRefresh: () => void }) {
+function ClientCommunicationsTab({ dealId, deal, onRefresh, canceled }: { dealId: string; deal: any; onRefresh: () => void; canceled?: boolean }) {
   const [clients, setClients]   = useState<DealClient[]>([])
   const [loading, setLoading]   = useState(true)
   const [subTab, setSubTab]     = useState<'clients' | 'email'>('clients')
@@ -1184,14 +1188,16 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
         />
       )}
 
-      {/* Sub-tab pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
-        <button onClick={() => setSubTab('clients')} style={subTab === 'clients' ? pillActive : pillInactive}>Clients</button>
-        <button onClick={() => setSubTab('email')}   style={subTab === 'email'   ? pillActive : pillInactive}>Email template</button>
-      </div>
+      {/* Sub-tab pills — hidden for cancelled deals */}
+      {!canceled && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+          <button onClick={() => setSubTab('clients')} style={subTab === 'clients' ? pillActive : pillInactive}>Clients</button>
+          <button onClick={() => setSubTab('email')}   style={subTab === 'email'   ? pillActive : pillInactive}>Email template</button>
+        </div>
+      )}
 
-      {/* ── Clients sub-tab ── */}
-      {subTab === 'clients' && (
+      {/* ── Clients sub-tab — always shown when canceled, otherwise conditioned on subTab ── */}
+      {(canceled || subTab === 'clients') && (
         <div>
           {clients.length === 0 ? (
             /* Empty state */
@@ -1202,53 +1208,57 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 340, margin: '0 auto 24px' }}>
                 Pull your client list directly from the MGA, or add clients individually.
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setShowImport(true)}
-                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
-                >
-                  Pull my client list
-                </button>
-                <button
-                  onClick={() => setShowAdd(true)}
-                  style={{ padding: '9px 20px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
-                >
-                  Add a client
-                </button>
-              </div>
+              {!canceled && (
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setShowImport(true)}
+                    style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+                  >
+                    Pull my client list
+                  </button>
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    style={{ padding: '9px 20px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontWeight: 400, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}
+                  >
+                    Add a client
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* Loaded state */
             <>
-              {/* Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' as const }}>
-                  <input
-                    type="checkbox"
-                    checked={selectAllChecked}
-                    ref={el => { if (el) el.indeterminate = selectAllIndeterminate }}
-                    onChange={toggleSelectAll}
-                    style={{ width: 15, height: 15, cursor: 'pointer', accentColor: BRAND.midnight }}
-                  />
-                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#6B7280' }}>
-                    {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
-                  </span>
-                </label>
-                <div style={{ flex: 1 }} />
-                <button
-                  onClick={() => setShowAdd(true)}
-                  style={{ padding: '6px 13px', borderRadius: 7, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 12, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  + Add a client
-                </button>
-                <button
-                  onClick={() => setSendTargets(selectedList)}
-                  disabled={selectedIds.size === 0}
-                  style={{ padding: '6px 13px', borderRadius: 7, border: 'none', background: selectedIds.size > 0 ? BRAND.midnight : '#E5E7EB', color: selectedIds.size > 0 ? 'white' : '#9CA3AF', fontSize: 12, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: selectedIds.size > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
-                >
-                  Send email
-                </button>
-              </div>
+              {/* Toolbar — hidden for cancelled deals */}
+              {!canceled && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' as const }}>
+                    <input
+                      type="checkbox"
+                      checked={selectAllChecked}
+                      ref={el => { if (el) el.indeterminate = selectAllIndeterminate }}
+                      onChange={toggleSelectAll}
+                      style={{ width: 15, height: 15, cursor: 'pointer', accentColor: BRAND.midnight }}
+                    />
+                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#6B7280' }}>
+                      {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+                    </span>
+                  </label>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    style={{ padding: '6px 13px', borderRadius: 7, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 12, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    + Add a client
+                  </button>
+                  <button
+                    onClick={() => setSendTargets(selectedList)}
+                    disabled={selectedIds.size === 0}
+                    style={{ padding: '6px 13px', borderRadius: 7, border: 'none', background: selectedIds.size > 0 ? BRAND.midnight : '#E5E7EB', color: selectedIds.size > 0 ? 'white' : '#9CA3AF', fontSize: 12, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: selectedIds.size > 0 ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
+                  >
+                    Send email
+                  </button>
+                </div>
+              )}
 
               {/* Client rows */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>
@@ -1326,7 +1336,7 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh }: { dealId: string; 
                   All parties must consent before advancing to Book Transfer.
                 </div>
 
-                {deal.status === 'client_communication' && (
+                {!canceled && deal.status === 'client_communication' && (
                   myConfirmed ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#639922', flexShrink: 0, display: 'inline-block' }} />
@@ -1760,12 +1770,27 @@ export default function DealDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Valuation')
   const [canceling, setCanceling] = useState(false)
 
+  function tabForStatus(status: string): Tab {
+    switch (status) {
+      case 'loi':                  return 'Letter of Intent'
+      case 'due_diligence':        return 'Due Diligence'
+      case 'client_communication': return 'Client Communications'
+      case 'book_transfer':
+      case 'closed':               return 'Book Transfer'
+      case 'interested':           return 'Notes'
+      default:                     return 'Valuation'
+    }
+  }
+
   useEffect(() => {
     Promise.all([
       fetch(`/api/deals/${id}`).then(r => r.json()),
       fetch('/api/me').then(r => r.json()),
     ]).then(([dealData, meData]) => {
-      if (dealData && !dealData.error) setDeal(dealData)
+      if (dealData && !dealData.error) {
+        setDeal(dealData)
+        setActiveTab(tabForStatus(dealData.status))
+      }
       if (meData?.user?.id) setCurrentUserId(meData.user.id)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -1877,8 +1902,8 @@ export default function DealDetailPage() {
           <div style={{ minHeight: 200 }}>
             {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
             {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
-            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
-            {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
+            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
+            {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
             {activeTab === 'Book Transfer'         && <BookTransferTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
             {activeTab === 'Notes'                 && <NotesTab dealId={id} currentUserId={currentUserId} />}
           </div>
