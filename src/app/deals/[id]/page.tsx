@@ -1627,7 +1627,7 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                             <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: bs.bg, color: bs.color }}>{bs.label}</span>
                           </td>
                           <td style={tdFinal}>
-                            {(row.buyerStatus === 'missing' || row.buyerStatus === 'pending') && row.buyerStatus !== 'active' && row.buyerStatus === 'missing' && (
+                            {row.buyerStatus === 'missing' && (
                               <button
                                 onClick={() => resolveCarrier(row.carrier)}
                                 disabled={resolving}
