@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -12,6 +13,13 @@ function makeClient(cookieStore: Awaited<ReturnType<typeof cookies>>) {
         setAll: (cs) => cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
       },
     }
+  )
+}
+
+function makeAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 
@@ -79,7 +87,9 @@ export async function POST(
     return NextResponse.json({ error: 'No valid clients provided' }, { status: 400 })
   }
 
-  const { data: clients, error } = await supabase
+  // Use admin client to bypass RLS — auth + participant check already done above
+  const admin = makeAdmin()
+  const { data: clients, error } = await admin
     .from('deal_clients')
     .insert(inserts)
     .select('id, client_name, client_email, consent_status, consent_responded_at, email_sent_at, created_at')
