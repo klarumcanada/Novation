@@ -168,20 +168,20 @@ export async function POST(request: NextRequest) {
 
   if (!policies || policies.length === 0) {
     const SEED = [
-      { product_type: 'life',             annual_premium: 42_000, status: 'active',  carrier: 'Canada Life'   },
-      { product_type: 'life',             annual_premium: 31_500, status: 'active',  carrier: 'Sun Life'      },
-      { product_type: 'life',             annual_premium: 18_200, status: 'active',  carrier: 'Manulife'      },
-      { product_type: 'life',             annual_premium:  9_800, status: 'lapsed',  carrier: 'iA Financial'  },
-      { product_type: 'disability',       annual_premium: 27_600, status: 'active',  carrier: 'Sun Life'      },
-      { product_type: 'disability',       annual_premium: 14_400, status: 'active',  carrier: 'Manulife'      },
-      { product_type: 'disability',       annual_premium:  8_100, status: 'lapsed',  carrier: 'Canada Life'   },
-      { product_type: 'critical_illness', annual_premium: 19_500, status: 'active',  carrier: 'iA Financial'  },
-      { product_type: 'critical_illness', annual_premium: 11_200, status: 'active',  carrier: 'Manulife'      },
-      { product_type: 'health',           annual_premium: 24_800, status: 'active',  carrier: 'Canada Life'   },
-      { product_type: 'health',           annual_premium: 16_300, status: 'active',  carrier: 'Sun Life'      },
-      { product_type: 'seg_funds',        annual_premium: 38_000, status: 'active',  carrier: 'Canada Life'   },
-      { product_type: 'seg_funds',        annual_premium: 22_500, status: 'active',  carrier: 'Manulife'      },
-      { product_type: 'seg_funds',        annual_premium:  7_200, status: 'lapsed',  carrier: 'RBC Insurance' },
+      { product_type: 'life',             annual_premium: 42_000, status: 'active',  carrier: 'Canada Life',   issue_date: '2018-03-15' },
+      { product_type: 'life',             annual_premium: 31_500, status: 'active',  carrier: 'Sun Life',      issue_date: '2019-07-22' },
+      { product_type: 'life',             annual_premium: 18_200, status: 'active',  carrier: 'Manulife',      issue_date: '2020-01-10' },
+      { product_type: 'life',             annual_premium:  9_800, status: 'lapsed',  carrier: 'iA Financial',  issue_date: '2017-11-05' },
+      { product_type: 'disability',       annual_premium: 27_600, status: 'active',  carrier: 'Sun Life',      issue_date: '2019-04-18' },
+      { product_type: 'disability',       annual_premium: 14_400, status: 'active',  carrier: 'Manulife',      issue_date: '2021-09-30' },
+      { product_type: 'disability',       annual_premium:  8_100, status: 'lapsed',  carrier: 'Canada Life',   issue_date: '2016-06-14' },
+      { product_type: 'critical_illness', annual_premium: 19_500, status: 'active',  carrier: 'iA Financial',  issue_date: '2020-08-25' },
+      { product_type: 'critical_illness', annual_premium: 11_200, status: 'active',  carrier: 'Manulife',      issue_date: '2022-02-11' },
+      { product_type: 'health',           annual_premium: 24_800, status: 'active',  carrier: 'Canada Life',   issue_date: '2018-12-01' },
+      { product_type: 'health',           annual_premium: 16_300, status: 'active',  carrier: 'Sun Life',      issue_date: '2021-05-19' },
+      { product_type: 'seg_funds',        annual_premium: 38_000, status: 'active',  carrier: 'Canada Life',   issue_date: '2017-08-07' },
+      { product_type: 'seg_funds',        annual_premium: 22_500, status: 'active',  carrier: 'Manulife',      issue_date: '2019-10-23' },
+      { product_type: 'seg_funds',        annual_premium:  7_200, status: 'lapsed',  carrier: 'RBC Insurance', issue_date: '2015-03-30' },
     ]
     const { data: inserted, error: seedError } = await admin
       .from('advisor_policies')
