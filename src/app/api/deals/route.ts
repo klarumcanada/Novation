@@ -81,8 +81,19 @@ export async function POST(request: NextRequest) {
   const seller_id = me.intent === 'selling' ? me.id : other.id
   const buyer_id  = me.intent === 'selling' ? other.id : me.id
 
-  const mga_id = me.mga_id
-  if (!mga_id) return NextResponse.json({ error: 'No MGA associated with your account' }, { status: 400 })
+  // This is a single-MGA deployment — resolve the MGA from the advisors' rows
+  // or fall back to the single MGA record in this instance.
+  let mga_id = me.mga_id ?? other.mga_id
+  if (!mga_id) {
+    const { data: mga } = await supabase.from('mgas').select('id').limit(1).single()
+    mga_id = mga?.id ?? null
+  }
+  if (!mga_id) return NextResponse.json({ error: 'No MGA found for this instance' }, { status: 400 })
+
+  // Back-fill mga_id on this advisor so future calls are instant
+  if (!me.mga_id) {
+    await supabase.from('advisors').update({ mga_id }).eq('id', me.id)
+  }
 
   const { data: existing } = await supabase
     .from('deals')

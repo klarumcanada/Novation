@@ -89,11 +89,10 @@ export default function AdvisorDetailPage() {
   }, [id])
 
   async function toggleSave() {
-    const method = saved ? 'DELETE' : 'POST'
     await fetch('/api/saves', {
-      method,
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ advisorId: id }),
+      body: JSON.stringify({ advisor_id: id }),
     })
     setSaved(!saved)
   }

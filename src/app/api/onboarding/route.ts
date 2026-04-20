@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  // Resolve the MGA for this single-tenant instance
+  const { data: mga } = await admin.from('mgas').select('id').limit(1).single()
+
   const update: Record<string, unknown> = {
     intent,
     specialties,
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest) {
     acquisition_timeline: body.acquisition_timeline ?? null,
   }
   if (body.avatar_url) update.avatar_url = body.avatar_url
+  if (mga?.id) update.mga_id = mga.id
 
   const { data, error } = await admin
     .from('advisors')
