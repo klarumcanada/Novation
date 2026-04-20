@@ -105,13 +105,21 @@ function BookValueSection() {
   async function runValuation() {
     setCalculating(true)
     setShowConsent(false)
-    const res = await fetch('/api/valuations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    })
-    const data = await res.json()
-    if (res.ok) setValuation(data.valuation)
+    try {
+      const res = await fetch('/api/valuations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setValuation(data.valuation)
+      } else {
+        alert(data.error ?? 'Could not calculate valuation.')
+      }
+    } catch {
+      alert('Something went wrong. Please try again.')
+    }
     setCalculating(false)
   }
 
