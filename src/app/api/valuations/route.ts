@@ -1,6 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+
+function makeAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const MULTIPLES: Record<string, { low: number; high: number }> = {
   life:             { low: 2.5, high: 3.5 },
@@ -150,7 +158,8 @@ export async function POST(request: NextRequest) {
       .upsert({ advisor_id: user.id, deal_id })
   }
 
-  const { data: policies } = await supabase
+  const admin = makeAdmin()
+  const { data: policies } = await admin
     .from('advisor_policies')
     .select('*')
     .eq('advisor_id', user.id)
