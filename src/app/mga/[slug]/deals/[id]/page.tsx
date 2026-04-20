@@ -775,6 +775,7 @@ export default function MgaDealDetailPage() {
             {activeTab === 'Letter of Intent'      && <LOITab                   deal={deal} />}
             {activeTab === 'Due Diligence'         && <DueDiligenceTab          deal={deal} />}
             {activeTab === 'Client Communications' && <ClientCommunicationsTab  deal={deal} />}
+            {activeTab === 'Book Transfer'         && <BookTransferTab          deal={deal} />}
             {activeTab === 'Notes'                 && <NotesTab dealId={dealId} currentUserId={currentUserId} />}
           </div>
 

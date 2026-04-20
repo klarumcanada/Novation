@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     carrier_affiliations,
     bio,
     onboarding_complete: true,
+    status: 'active',
     aum: body.aum ?? null,
     client_count: body.client_count ?? null,
     target_provinces: body.target_provinces ?? null,
