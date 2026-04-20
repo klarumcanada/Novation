@@ -108,7 +108,8 @@ export async function POST(
     return NextResponse.json({ error: 'Only PDF, DOCX, and PNG files are allowed.' }, { status: 400 })
   }
 
-  const storagePath = `${id}/${Date.now()}-${file.name}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const storagePath = `${id}/${Date.now()}-${safeName}`
   const admin = makeAdmin()
 
   const { error: uploadError } = await admin.storage
