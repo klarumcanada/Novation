@@ -1,9 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
-function makeClient(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  return createServerClient(
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -13,20 +19,11 @@ function makeClient(cookieStore: Awaited<ReturnType<typeof cookies>>) {
       },
     }
   )
-}
-
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
-  const cookieStore = await cookies()
-  const supabase = makeClient(cookieStore)
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Fetch deal and verify MGA access
+  // Verify MGA membership
   const { data: deal } = await supabase
     .from('deals')
     .select('seller_id, mga_id')
@@ -44,25 +41,24 @@ export async function GET(
 
   if (!mgaUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-  // Find valuation by deal_id first, fall back to seller's advisor_id
-  let valuation = null
+  // Auth done — use admin client so RLS on book_valuations doesn't block the read
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-  const { data: byDeal } = await supabase
+  const { data: byDeal } = await admin
     .from('book_valuations')
     .select('*')
     .eq('deal_id', id)
     .maybeSingle()
 
-  if (byDeal) {
-    valuation = byDeal
-  } else {
-    const { data: bySeller } = await supabase
-      .from('book_valuations')
-      .select('*')
-      .eq('advisor_id', deal.seller_id)
-      .maybeSingle()
-    valuation = bySeller
-  }
+  const valuation = byDeal ?? (await admin
+    .from('book_valuations')
+    .select('*')
+    .eq('advisor_id', deal.seller_id)
+    .maybeSingle()
+  ).data
 
   if (!valuation) return NextResponse.json(null)
   return NextResponse.json(valuation)

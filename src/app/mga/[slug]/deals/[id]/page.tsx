@@ -36,8 +36,8 @@ const STAGE_LABEL: Record<string, string> = {
   canceled:             'Cancelled',
 }
 
-type Tab = 'Valuation' | 'Letter of Intent' | 'Due Diligence' | 'Client Communications' | 'Notes'
-const TABS: Tab[] = ['Valuation', 'Letter of Intent', 'Due Diligence', 'Client Communications', 'Notes']
+type Tab = 'Valuation' | 'Letter of Intent' | 'Due Diligence' | 'Client Communications' | 'Book Transfer' | 'Notes'
+const TABS: Tab[] = ['Valuation', 'Letter of Intent', 'Due Diligence', 'Client Communications', 'Book Transfer', 'Notes']
 
 function stageIndex(s: string) {
   return DISPLAY_STAGES.findIndex(d => d.keys.includes(s))
@@ -74,6 +74,7 @@ type Deal = {
   loi_buyer_signed: boolean
   loi_seller_signed_at: string | null
   loi_buyer_signed_at: string | null
+  book_transfer_completed_at: string | null
   seller: { id: string; full_name: string; avatar_url: string | null }
   buyer:  { id: string; full_name: string; avatar_url: string | null }
 }
@@ -529,6 +530,52 @@ function ClientCommunicationsTab({ deal }: { deal: Deal }) {
       {clients.length === 0 && (
         <p style={{ fontFamily: FONT, fontSize: 13, color: '#9CA3AF', margin: 0 }}>No clients loaded yet.</p>
       )}
+    </div>
+  )
+}
+
+// ── Book Transfer tab (read-only for MGA) ────────────────────────────────────
+
+function BookTransferTab({ deal }: { deal: Deal }) {
+  const btReached = ['book_transfer', 'closed'].includes(deal.status)
+  if (!btReached) return <PlaceholderTab description="Book Transfer becomes available once client communications are complete." />
+
+  const isComplete = deal.status === 'closed'
+
+  return (
+    <div style={{ padding: '28px 32px' }}>
+      <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 16 }}>
+        Book Transfer
+      </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Seller', name: deal.seller.full_name, confirmed: deal.cc_complete_seller },
+          { label: 'Buyer',  name: deal.buyer.full_name,  confirmed: deal.cc_complete_buyer  },
+        ].map(({ label, name, confirmed }) => (
+          <div key={label} style={{ flex: 1, minWidth: 160, border: `1px solid ${confirmed ? '#86EFAC' : BRAND.border}`, borderRadius: 10, padding: '14px 16px', background: confirmed ? '#F0FDF4' : 'white' }}>
+            <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 2 }}>{label}</div>
+            <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: BRAND.midnight, marginBottom: 6 }}>{name}</div>
+            {confirmed
+              ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} /><span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: '#16A34A' }}>CC confirmed</span></div>
+              : <div style={{ fontFamily: FONT, fontSize: 13, color: '#94A3B8' }}>Pending</div>
+            }
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 24, padding: '16px 20px', borderRadius: 10, border: `1px solid ${isComplete ? '#86EFAC' : BRAND.border}`, background: isComplete ? '#F0FDF4' : 'white', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: isComplete ? '#22C55E' : '#D1D5DB', flexShrink: 0, display: 'inline-block' }} />
+        <div>
+          <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: BRAND.midnight }}>
+            {isComplete ? 'Book transfer complete' : 'Book transfer in progress'}
+          </div>
+          {deal.book_transfer_completed_at && (
+            <div style={{ fontFamily: FONT, fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+              Completed {fmtDate(deal.book_transfer_completed_at, { month: 'long', day: 'numeric', year: 'numeric' })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
