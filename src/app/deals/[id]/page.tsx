@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
-import { importClientsFromMGA, validateContracting, completeBookTransfer, CarrierContractingRow } from './actions'
+import { importClientsFromMGA, importPoliciesFromMGA, validateContracting, completeBookTransfer, CarrierContractingRow } from './actions'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -218,6 +218,7 @@ function ValuationTab({ deal, onRefresh }: { deal: any; onRefresh: () => Promise
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showManual, setShowManual] = useState(false)
+  const [showConsent, setShowConsent] = useState(false)
   const [manualLow, setManualLow] = useState('')
   const [manualHigh, setManualHigh] = useState('')
   const router = useRouter()
@@ -248,7 +249,15 @@ function ValuationTab({ deal, onRefresh }: { deal: any; onRefresh: () => Promise
   }
 
   async function calculateWithNovation() {
+    setShowConsent(false)
     setSubmitting(true)
+    try {
+      await importPoliciesFromMGA(deal.seller_id ?? deal.seller?.id)
+    } catch {
+      setSubmitting(false)
+      alert('Could not import policy data from MGA.')
+      return
+    }
     const res = await fetch('/api/valuations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -345,11 +354,33 @@ function ValuationTab({ deal, onRefresh }: { deal: any; onRefresh: () => Promise
           </div>
         ) : (
           <>
+            {showConsent && (
+              <CCModalOverlay onClose={() => setShowConsent(false)}>
+                <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.midnight, marginBottom: 10 }}>
+                    Allow Novation to access your book data
+                  </div>
+                  <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>
+                    To calculate your book valuation, Novation will pull your policy data from the MGA — including product types, premium amounts, and policy status. This data is used only to generate your valuation and is not shared without your consent.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={calculateWithNovation} disabled={submitting}
+                      style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+                      {submitting ? 'Importing data…' : 'Allow & calculate'}
+                    </button>
+                    <button onClick={() => setShowConsent(false)}
+                      style={{ padding: '10px 18px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: '#6B7280', fontSize: 13, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </CCModalOverlay>
+            )}
             <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', marginTop: 0, marginBottom: 20 }}>
               Provide a valuation for your book before sharing it with the buyer.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button onClick={calculateWithNovation} disabled={submitting}
+              <button onClick={() => setShowConsent(true)} disabled={submitting}
                 style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Calculating…' : 'Calculate with Novation'}
               </button>

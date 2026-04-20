@@ -163,6 +163,44 @@ const SEED_CLIENTS = [
   { client_name: 'Edgar & Florence Whitmore',   client_email: 'e.whitmore@email.com',       carrier: 'Canada Life',  policy_id: 'CL-80341'  },
 ]
 
+const SEED_POLICIES = [
+  { product_type: 'life',             annual_premium: 42_000, status: 'active',   carrier: 'Canada Life'   },
+  { product_type: 'life',             annual_premium: 31_500, status: 'active',   carrier: 'Sun Life'      },
+  { product_type: 'life',             annual_premium: 18_200, status: 'active',   carrier: 'Manulife'      },
+  { product_type: 'life',             annual_premium: 9_800,  status: 'lapsed',   carrier: 'iA Financial'  },
+  { product_type: 'disability',       annual_premium: 27_600, status: 'active',   carrier: 'Sun Life'      },
+  { product_type: 'disability',       annual_premium: 14_400, status: 'active',   carrier: 'Manulife'      },
+  { product_type: 'disability',       annual_premium: 8_100,  status: 'lapsed',   carrier: 'Canada Life'   },
+  { product_type: 'critical_illness', annual_premium: 19_500, status: 'active',   carrier: 'iA Financial'  },
+  { product_type: 'critical_illness', annual_premium: 11_200, status: 'active',   carrier: 'Manulife'      },
+  { product_type: 'health',           annual_premium: 24_800, status: 'active',   carrier: 'Canada Life'   },
+  { product_type: 'health',           annual_premium: 16_300, status: 'active',   carrier: 'Sun Life'      },
+  { product_type: 'seg_funds',        annual_premium: 38_000, status: 'active',   carrier: 'Canada Life'   },
+  { product_type: 'seg_funds',        annual_premium: 22_500, status: 'active',   carrier: 'Manulife'      },
+  { product_type: 'seg_funds',        annual_premium: 7_200,  status: 'lapsed',   carrier: 'RBC Insurance' },
+]
+
+export async function importPoliciesFromMGA(advisorId: string): Promise<void> {
+  await new Promise(r => setTimeout(r, 900))
+
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: existing } = await admin
+    .from('advisor_policies')
+    .select('id')
+    .eq('advisor_id', advisorId)
+    .limit(1)
+
+  if (existing && existing.length > 0) return
+
+  const rows = SEED_POLICIES.map(p => ({ advisor_id: advisorId, ...p }))
+  const { error } = await admin.from('advisor_policies').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
 export async function importClientsFromMGA(dealId: string): Promise<{ clients: ImportedClient[] }> {
   // Simulate MGA API latency
   await new Promise(r => setTimeout(r, 1200))
