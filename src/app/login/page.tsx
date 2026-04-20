@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const BRAND = {
@@ -367,7 +367,7 @@ function JoinTab({ initialCode = '' }: { initialCode?: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────
 
-export default function LoginPage() {
+function LoginPageInner() {
   const searchParams = useSearchParams()
   const codeParam = searchParams.get('code') ?? ''
   const [tab, setTab] = useState<'signin' | 'join'>(codeParam ? 'join' : 'signin')
@@ -421,5 +421,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
   )
 }
