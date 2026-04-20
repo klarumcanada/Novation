@@ -159,10 +159,36 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = makeAdmin()
-  const { data: policies } = await admin
+
+  // Seed demo policies if none exist yet
+  let { data: policies } = await admin
     .from('advisor_policies')
     .select('*')
     .eq('advisor_id', user.id)
+
+  if (!policies || policies.length === 0) {
+    const SEED = [
+      { product_type: 'life',             annual_premium: 42_000, status: 'active',  carrier: 'Canada Life'   },
+      { product_type: 'life',             annual_premium: 31_500, status: 'active',  carrier: 'Sun Life'      },
+      { product_type: 'life',             annual_premium: 18_200, status: 'active',  carrier: 'Manulife'      },
+      { product_type: 'life',             annual_premium:  9_800, status: 'lapsed',  carrier: 'iA Financial'  },
+      { product_type: 'disability',       annual_premium: 27_600, status: 'active',  carrier: 'Sun Life'      },
+      { product_type: 'disability',       annual_premium: 14_400, status: 'active',  carrier: 'Manulife'      },
+      { product_type: 'disability',       annual_premium:  8_100, status: 'lapsed',  carrier: 'Canada Life'   },
+      { product_type: 'critical_illness', annual_premium: 19_500, status: 'active',  carrier: 'iA Financial'  },
+      { product_type: 'critical_illness', annual_premium: 11_200, status: 'active',  carrier: 'Manulife'      },
+      { product_type: 'health',           annual_premium: 24_800, status: 'active',  carrier: 'Canada Life'   },
+      { product_type: 'health',           annual_premium: 16_300, status: 'active',  carrier: 'Sun Life'      },
+      { product_type: 'seg_funds',        annual_premium: 38_000, status: 'active',  carrier: 'Canada Life'   },
+      { product_type: 'seg_funds',        annual_premium: 22_500, status: 'active',  carrier: 'Manulife'      },
+      { product_type: 'seg_funds',        annual_premium:  7_200, status: 'lapsed',  carrier: 'RBC Insurance' },
+    ]
+    const { data: inserted } = await admin
+      .from('advisor_policies')
+      .insert(SEED.map(p => ({ advisor_id: user.id, ...p })))
+      .select('*')
+    policies = inserted ?? []
+  }
 
   if (!policies || policies.length === 0)
     return NextResponse.json({ error: 'No policy data found' }, { status: 400 })
