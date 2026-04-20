@@ -158,13 +158,13 @@ export async function POST(request: NextRequest) {
       .upsert({ advisor_id: user.id, deal_id })
   }
 
-  const admin = makeAdmin()
-
   // Seed demo policies if none exist yet
-  let { data: policies } = await admin
+  let { data: policies } = await supabase
     .from('advisor_policies')
     .select('*')
     .eq('advisor_id', user.id)
+
+  const admin = makeAdmin()
 
   if (!policies || policies.length === 0) {
     const SEED = [
@@ -183,10 +183,11 @@ export async function POST(request: NextRequest) {
       { product_type: 'seg_funds',        annual_premium: 22_500, status: 'active',  carrier: 'Manulife'      },
       { product_type: 'seg_funds',        annual_premium:  7_200, status: 'lapsed',  carrier: 'RBC Insurance' },
     ]
-    const { data: inserted } = await admin
+    const { data: inserted, error: seedError } = await admin
       .from('advisor_policies')
       .insert(SEED.map(p => ({ advisor_id: user.id, ...p })))
       .select('*')
+    if (seedError) return NextResponse.json({ error: `Seed failed: ${seedError.message}` }, { status: 400 })
     policies = inserted ?? []
   }
 
