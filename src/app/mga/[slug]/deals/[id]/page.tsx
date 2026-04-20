@@ -715,7 +715,7 @@ export default function MgaDealDetailPage() {
 
           {/* Header */}
           <div style={{ padding: '28px 32px', borderBottom: `1px solid ${BRAND.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 20 }}>
               {/* Seller */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
                 <Avatar name={deal.seller.full_name} url={deal.seller.avatar_url} size={52} />
@@ -727,28 +727,28 @@ export default function MgaDealDetailPage() {
                 </div>
               </div>
 
-              {/* Buyer — badge floats below name, right-aligned */}
+              {/* Buyer — avatars aligned by shared alignItems: center on parent */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: '#9CA3AF', marginBottom: 3 }}>Buyer</div>
                   <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 22, fontWeight: 600, color: BRAND.midnight, lineHeight: 1.2 }}>
                     {deal.buyer.full_name}
                   </div>
-                  <div style={{ marginTop: 6 }}>
-                    <span style={{ fontFamily: FONT, fontSize: 12, fontWeight: 500, padding: '3px 11px', borderRadius: 20, background: badgeBg, color: badgeColor, border: `1px solid ${badgeColor}22` }}>
-                      {STAGE_LABEL[deal.status] ?? deal.status}
-                    </span>
-                  </div>
                 </div>
                 <Avatar name={deal.buyer.full_name} url={deal.buyer.avatar_url} size={52} />
               </div>
             </div>
 
-            {/* Meta */}
-            <div style={{ fontFamily: FONT, fontSize: 13, color: '#9CA3AF' }}>
-              Started {fmtDate(deal.created_at, { month: 'long', day: 'numeric', year: 'numeric' })}
-              <span style={{ margin: '0 6px' }}>·</span>
-              Last activity {fmtDate(deal.updated_at, { month: 'short', day: 'numeric', year: 'numeric' })}
+            {/* Meta + status badge */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontFamily: FONT, fontSize: 13, color: '#9CA3AF' }}>
+                Started {fmtDate(deal.created_at, { month: 'long', day: 'numeric', year: 'numeric' })}
+                <span style={{ margin: '0 6px' }}>·</span>
+                Last activity {fmtDate(deal.updated_at, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              <span style={{ fontFamily: FONT, fontSize: 12, fontWeight: 500, padding: '3px 11px', borderRadius: 20, background: badgeBg, color: badgeColor, border: `1px solid ${badgeColor}22`, whiteSpace: 'nowrap' }}>
+                {STAGE_LABEL[deal.status] ?? deal.status}
+              </span>
             </div>
           </div>
 
