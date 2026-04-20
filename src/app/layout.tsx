@@ -18,7 +18,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Klarum — We handle the tech. You handle the business.",
+  title: "Novation by Klarum",
   description:
     "Klarum builds tools that MGAs and advisors need — so you can stay focused on clients and growth.",
 };
