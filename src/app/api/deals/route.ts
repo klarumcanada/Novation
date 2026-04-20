@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -85,15 +86,19 @@ export async function POST(request: NextRequest) {
   // or fall back to the single MGA record in this instance.
   let mga_id = me.mga_id ?? other.mga_id
   if (!mga_id) {
-    const { data: mga } = await supabase.from('mgas').select('id').limit(1).single()
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: mga } = await admin.from('mgas').select('id').limit(1).single()
     mga_id = mga?.id ?? null
+
+    // Back-fill so future calls skip this lookup
+    if (mga_id) {
+      await admin.from('advisors').update({ mga_id }).eq('id', me.id)
+    }
   }
   if (!mga_id) return NextResponse.json({ error: 'No MGA found for this instance' }, { status: 400 })
-
-  // Back-fill mga_id on this advisor so future calls are instant
-  if (!me.mga_id) {
-    await supabase.from('advisors').update({ mga_id }).eq('id', me.id)
-  }
 
   const { data: existing } = await supabase
     .from('deals')

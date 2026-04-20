@@ -1760,6 +1760,90 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
   )
 }
 
+// ─── Interested stage panel ───────────────────────────────────────────────────
+function InterestedPanel({ deal, dealId, onRefresh }: { deal: any; dealId: string; onRefresh: () => Promise<void> }) {
+  const [loading, setLoading] = useState(false)
+  const other = deal.is_seller ? deal.buyer : deal.seller
+  const otherFirst = other?.full_name?.split(' ')[0] ?? 'the other party'
+
+  async function confirm() {
+    setLoading(true)
+    const res = await fetch(`/api/deals/${dealId}/confirm`, { method: 'POST' })
+    if (res.ok) {
+      await onRefresh()
+    } else {
+      const json = await res.json()
+      alert(json.error ?? 'Could not confirm interest.')
+    }
+    setLoading(false)
+  }
+
+  async function decline() {
+    if (!window.confirm('Decline this deal? It will be canceled.')) return
+    setLoading(true)
+    const res = await fetch(`/api/deals/${dealId}/cancel`, { method: 'POST' })
+    if (res.ok) {
+      await onRefresh()
+    } else {
+      const json = await res.json()
+      alert(json.error ?? 'Could not decline deal.')
+    }
+    setLoading(false)
+  }
+
+  if (deal.is_initiator) {
+    return (
+      <div style={{ padding: '48px 32px', textAlign: 'center' }}>
+        <Avatar name={other.full_name} url={other.avatar_url} size={64} />
+        <div style={{ marginTop: 20, fontFamily: 'DM Sans, sans-serif', fontSize: 16, fontWeight: 600, color: BRAND.midnight }}>
+          Waiting for {otherFirst} to confirm interest
+        </div>
+        <div style={{ marginTop: 8, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 340, margin: '8px auto 0' }}>
+          You've expressed interest in this deal. Once {otherFirst} confirms, you'll both move to the valuation stage.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: '48px 32px', textAlign: 'center' }}>
+      <Avatar name={other.full_name} url={other.avatar_url} size={64} />
+      <div style={{ marginTop: 20, fontFamily: 'DM Sans, sans-serif', fontSize: 16, fontWeight: 600, color: BRAND.midnight }}>
+        {other.full_name} has expressed interest in a deal with you
+      </div>
+      <div style={{ marginTop: 8, fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 340, margin: '8px auto 24px' }}>
+        Confirm to move to the valuation stage, or decline to close this deal.
+      </div>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <button
+          onClick={confirm}
+          disabled={loading}
+          style={{
+            padding: '10px 28px', borderRadius: 8, border: 'none',
+            background: BRAND.midnight, color: 'white',
+            fontSize: 14, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
+            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+          }}
+        >
+          Confirm interest
+        </button>
+        <button
+          onClick={decline}
+          disabled={loading}
+          style={{
+            padding: '10px 24px', borderRadius: 8,
+            border: '1px solid #E2E6F0', background: 'white',
+            color: '#6B7280', fontSize: 14, fontFamily: 'DM Sans, sans-serif',
+            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+          }}
+        >
+          Decline
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -1895,23 +1979,31 @@ export default function DealDetailPage() {
             <StageBar status={deal.status} />
           </div>
 
-          {/* Tab bar — 16px gap achieved via marginTop on tabs */}
-          <TabBar active={activeTab} onChange={setActiveTab} dealStatus={deal.status} />
+          {/* Interest stage: replace tabs with a dedicated action panel */}
+          {deal.status === 'interested'
+            ? <InterestedPanel deal={deal} dealId={id} onRefresh={refreshDeal} />
+            : (
+              <>
+                {/* Tab bar — 16px gap achieved via marginTop on tabs */}
+                <TabBar active={activeTab} onChange={setActiveTab} dealStatus={deal.status} />
 
-          {/* Tab content */}
-          <div style={{ minHeight: 200 }}>
-            {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
-            {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
-            {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
-            {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
-            {activeTab === 'Book Transfer'         && <BookTransferTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
-            {activeTab === 'Notes'                 && <NotesTab dealId={id} currentUserId={currentUserId} />}
-          </div>
+                {/* Tab content */}
+                <div style={{ minHeight: 200 }}>
+                  {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
+                  {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
+                  {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
+                  {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
+                  {activeTab === 'Book Transfer'         && <BookTransferTab dealId={id} deal={deal} onRefresh={refreshDeal} />}
+                  {activeTab === 'Notes'                 && <NotesTab dealId={id} currentUserId={currentUserId} />}
+                </div>
+              </>
+            )
+          }
 
         </div>
 
         {/* Cancel deal — below card, right-aligned */}
-        {deal.status !== 'canceled' && deal.status !== 'closed' && (
+        {deal.status !== 'canceled' && deal.status !== 'closed' && deal.status !== 'interested' && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
             <button
               onClick={cancelDeal}
