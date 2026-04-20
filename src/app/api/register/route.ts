@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     password,
     options: {
       data: { full_name },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
     },
   })
 
