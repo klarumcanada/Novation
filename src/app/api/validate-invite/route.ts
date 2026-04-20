@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('invite_codes')
-    .select('id, is_active, used_by, expires_at')
+    .select('id, is_active, used_by, expires_at, mga_advisor_id')
     .eq('code', code.toUpperCase().trim())
     .single()
 
@@ -43,5 +43,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ valid: false, error: 'This invite code has expired' }, { status: 200 })
   }
 
-  return NextResponse.json({ valid: true, invite_id: data.id }, { status: 200 })
+  let advisor_data: Record<string, string | number | null> | null = null
+  if (data.mga_advisor_id) {
+    const { data: advisor } = await supabase
+      .from('mga_advisors')
+      .select('full_name, email, phone, province, years_in_practice')
+      .eq('id', data.mga_advisor_id)
+      .single()
+    advisor_data = advisor ?? null
+  }
+
+  return NextResponse.json({ valid: true, invite_id: data.id, advisor_data }, { status: 200 })
 }

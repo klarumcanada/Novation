@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -166,9 +166,9 @@ function SignInTab() {
 
 type JoinStep = 'token' | 'register' | 'done'
 
-function JoinTab() {
+function JoinTab({ initialCode = '' }: { initialCode?: string }) {
   const [step, setStep] = useState<JoinStep>('token')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(initialCode)
   const [validatedCode, setValidatedCode] = useState('')
   const [tokenError, setTokenError] = useState<string | null>(null)
   const [tokenLoading, setTokenLoading] = useState(false)
@@ -188,15 +188,16 @@ function JoinTab() {
     setForm(f => ({ ...f, [key]: value }))
   }
 
-  async function handleTokenSubmit() {
-    if (!code.trim()) return setTokenError('Please enter your invite code.')
+  async function handleTokenSubmit(overrideCode?: string) {
+    const submitCode = (overrideCode ?? code).trim()
+    if (!submitCode) return setTokenError('Please enter your invite code.')
     setTokenError(null)
     setTokenLoading(true)
 
     const res = await fetch('/api/validate-invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.trim() }),
+      body: JSON.stringify({ code: submitCode }),
     })
 
     const data = await res.json()
@@ -207,9 +208,25 @@ function JoinTab() {
       return
     }
 
-    setValidatedCode(code.trim().toUpperCase())
+    if (data.advisor_data) {
+      const a = data.advisor_data
+      setForm(f => ({
+        ...f,
+        full_name:         a.full_name         ?? f.full_name,
+        email:             a.email             ?? f.email,
+        phone:             a.phone             ?? f.phone,
+        province:          a.province          ?? f.province,
+        years_in_practice: a.years_in_practice != null ? String(a.years_in_practice) : f.years_in_practice,
+      }))
+    }
+
+    setValidatedCode(submitCode.toUpperCase())
     setStep('register')
   }
+
+  useEffect(() => {
+    if (initialCode) handleTokenSubmit(initialCode)
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRegisterSubmit() {
     const { full_name, email, password, phone, province, years_in_practice } = form
@@ -263,7 +280,7 @@ function JoinTab() {
           />
         </Field>
         {tokenError && <ErrorMsg>{tokenError}</ErrorMsg>}
-        <button onClick={handleTokenSubmit} disabled={tokenLoading} style={submitBtn(tokenLoading)}>
+        <button onClick={() => handleTokenSubmit()} disabled={tokenLoading} style={submitBtn(tokenLoading)}>
           {tokenLoading ? 'Checking…' : 'Continue →'}
         </button>
       </>
@@ -351,7 +368,9 @@ function JoinTab() {
 // ── Page ──────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const [tab, setTab] = useState<'signin' | 'join'>('signin')
+  const searchParams = useSearchParams()
+  const codeParam = searchParams.get('code') ?? ''
+  const [tab, setTab] = useState<'signin' | 'join'>(codeParam ? 'join' : 'signin')
 
   return (
     <div style={{
@@ -398,7 +417,7 @@ export default function LoginPage() {
             })}
           </div>
 
-          {tab === 'signin' ? <SignInTab /> : <JoinTab />}
+          {tab === 'signin' ? <SignInTab /> : <JoinTab initialCode={codeParam} />}
         </div>
       </div>
     </div>
