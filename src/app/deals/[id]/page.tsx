@@ -213,10 +213,19 @@ function PlaceholderTab({ title, description }: { title: string; description: st
 }
 
 // ─── Valuation tab ───────────────────────────────────────────────────────────
-function ValuationTab({ deal }: { deal: any }) {
+function ValuationTab({ deal, onRefresh }: { deal: any; onRefresh: () => Promise<void> }) {
   const [valuation, setValuation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [showManual, setShowManual] = useState(false)
+  const [manualLow, setManualLow] = useState('')
+  const [manualHigh, setManualHigh] = useState('')
   const router = useRouter()
+
+  async function reload() {
+    const d = await fetch(`/api/deals/${deal.id}/valuation`).then(r => r.json())
+    setValuation(d && !d.error ? d : null)
+  }
 
   useEffect(() => {
     fetch(`/api/deals/${deal.id}/valuation`)
@@ -232,18 +241,142 @@ function ValuationTab({ deal }: { deal: any }) {
     return <PlaceholderTab title="Not yet reached" description="Valuation becomes available once both parties confirm interest." />
   }
 
-  if (!valuation) return (
-    <div style={{ padding: 24 }}>
-      <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF' }}>No valuation on file yet.</p>
-    </div>
-  )
-
   function formatMoney(n: number) {
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
     if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
     return `$${n.toLocaleString()}`
   }
 
+  async function calculateWithNovation() {
+    setSubmitting(true)
+    const res = await fetch('/api/valuations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deal_id: deal.id }),
+    })
+    setSubmitting(false)
+    if (res.ok) {
+      router.push('/valuation/report')
+    } else {
+      const d = await res.json()
+      alert(d.error ?? 'Could not calculate valuation.')
+    }
+  }
+
+  async function submitManual() {
+    const low  = parseFloat(manualLow.replace(/,/g, ''))
+    const high = parseFloat(manualHigh.replace(/,/g, ''))
+    if (!low || !high || low > high) { alert('Enter valid low and high values (low ≤ high).'); return }
+    setSubmitting(true)
+    const res = await fetch('/api/valuations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'manual', deal_id: deal.id, low_value: low, high_value: high }),
+    })
+    setSubmitting(false)
+    if (res.ok) {
+      setShowManual(false)
+      await reload()
+    } else {
+      const d = await res.json()
+      alert(d.error ?? 'Could not save valuation.')
+    }
+  }
+
+  async function shareWithBuyer() {
+    setSubmitting(true)
+    const res = await fetch(`/api/deals/${deal.id}/share-valuation`, { method: 'POST' })
+    setSubmitting(false)
+    if (res.ok) {
+      await onRefresh()
+      await reload()
+    } else {
+      const d = await res.json()
+      alert(d.error ?? 'Could not share valuation.')
+    }
+  }
+
+  async function confirmValuation() {
+    setSubmitting(true)
+    const res = await fetch(`/api/deals/${deal.id}/confirm`, { method: 'POST' })
+    setSubmitting(false)
+    if (res.ok) {
+      await onRefresh()
+    } else {
+      const d = await res.json()
+      alert(d.error ?? 'Could not confirm.')
+    }
+  }
+
+  const isSeller = deal.is_seller
+
+  // Seller — no valuation yet
+  if (!valuation && isSeller) {
+    return (
+      <div style={{ padding: '28px 32px' }}>
+        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 16 }}>
+          Book Valuation
+        </div>
+        {showManual ? (
+          <div style={{ maxWidth: 360 }}>
+            <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 600, color: BRAND.midnight, marginBottom: 12 }}>Enter valuation range</div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 4 }}>Low value ($)</label>
+                <input value={manualLow} onChange={e => setManualLow(e.target.value)} placeholder="e.g. 500000"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, boxSizing: 'border-box' as const }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 4 }}>High value ($)</label>
+                <input value={manualHigh} onChange={e => setManualHigh(e.target.value)} placeholder="e.g. 700000"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${BRAND.border}`, fontFamily: 'DM Sans, sans-serif', fontSize: 13, boxSizing: 'border-box' as const }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={submitManual} disabled={submitting}
+                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? 'Saving…' : 'Save'}
+              </button>
+              <button onClick={() => setShowManual(false)}
+                style={{ padding: '8px 18px', borderRadius: 7, border: `1px solid ${BRAND.border}`, background: 'white', color: '#6B7280', fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', marginTop: 0, marginBottom: 20 }}>
+              Provide a valuation for your book before sharing it with the buyer.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button onClick={calculateWithNovation} disabled={submitting}
+                style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? 'Calculating…' : 'Calculate with Novation'}
+              </button>
+              <button onClick={() => setShowManual(true)}
+                style={{ padding: '9px 20px', borderRadius: 8, border: `1px solid ${BRAND.border}`, background: 'white', color: BRAND.midnight, fontSize: 13, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+                Enter value manually
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // Buyer — waiting for seller to share
+  if (!valuation && !isSeller) {
+    return (
+      <div style={{ padding: '28px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', flexShrink: 0, display: 'inline-block' }} />
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#6B7280' }}>Waiting for the seller to complete and share the valuation.</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Valuation exists — show it
   return (
     <div style={{ padding: '28px 32px' }}>
       <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: BRAND.stepNum, marginBottom: 8 }}>
@@ -268,6 +401,20 @@ function ValuationTab({ deal }: { deal: any }) {
             style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', cursor: 'pointer', textDecoration: 'none' }}>
             View uploaded report →
           </a>
+        )}
+        {/* Seller: share with buyer when still in valuation_pending */}
+        {isSeller && deal.status === 'valuation_pending' && (
+          <button onClick={shareWithBuyer} disabled={submitting}
+            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: 'none', background: '#185FA5', color: 'white', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? 'Sharing…' : 'Share with buyer →'}
+          </button>
+        )}
+        {/* Buyer: confirm to advance to LOI when valuation is shared */}
+        {!isSeller && deal.status === 'valuation_shared' && (
+          <button onClick={confirmValuation} disabled={submitting}
+            style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'DM Sans, sans-serif', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? 'Confirming…' : 'Proceed to LOI →'}
+          </button>
         )}
       </div>
       {valuation.shared_with_buyer && (
@@ -1989,7 +2136,7 @@ export default function DealDetailPage() {
 
                 {/* Tab content */}
                 <div style={{ minHeight: 200 }}>
-                  {activeTab === 'Valuation'             && <ValuationTab deal={deal} />}
+                  {activeTab === 'Valuation'             && <ValuationTab deal={deal} onRefresh={refreshDeal} />}
                   {activeTab === 'Letter of Intent'      && <LOITab deal={deal} />}
                   {activeTab === 'Due Diligence'         && <DueDiligenceTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
                   {activeTab === 'Client Communications' && <ClientCommunicationsTab dealId={id} deal={deal} onRefresh={refreshDeal} canceled={deal.status === 'canceled'} />}
