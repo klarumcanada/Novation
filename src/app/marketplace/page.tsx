@@ -289,12 +289,7 @@ function SellerCard({ advisor, href }: { advisor: Advisor; href: string }) {
         </div>
       </div>
       <div style={statRowStyle}>
-        {advisor.book_value
-          ? <StatPill label="Book Value" value={formatMoney(advisor.book_value)} highlight />
-          : advisor.aum
-          ? <StatPill label="AUM" value={formatMoney(advisor.aum)} />
-          : null
-        }
+        <StatPill label="Book Value" value={advisor.book_value ? formatMoney(advisor.book_value) : '—'} highlight={!!advisor.book_value} />
         {advisor.client_count && <StatPill label="Clients" value={advisor.client_count.toLocaleString()} />}
         {advisor.transition_duration && <StatPill label="Timeline" value={advisor.transition_duration} />}
         {advisor.willing_to_stay && <StatPill label="" value="Open to staying on" />}
