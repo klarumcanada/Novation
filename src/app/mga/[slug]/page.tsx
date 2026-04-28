@@ -36,10 +36,13 @@ export default async function MgaDashboard({
     .select('status')
     .eq('mga_id', mga.id)
 
-  const advisorCounts = { pending: 0, invited: 0, registered: 0, active: 0 }
-  ;(mgaAdvisors ?? []).forEach(a => {
-    if (a.status in advisorCounts) advisorCounts[a.status as keyof typeof advisorCounts]++
-  })
+  const statuses = (mgaAdvisors ?? []).map(a => a.status)
+  const advisorCounts = {
+    pending:    statuses.filter(s => s === 'pending').length,
+    invited:    statuses.filter(s => s === 'invited').length,
+    registered: statuses.filter(s => s === 'registered').length,
+    active:     statuses.filter(s => s === 'active').length,
+  }
   const totalAdvisors = Object.values(advisorCounts).reduce((a, b) => a + b, 0)
 
   // Deal counts via advisor IDs
