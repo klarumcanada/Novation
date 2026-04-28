@@ -11,6 +11,8 @@ type ParsedRow = {
   province: string
   years_in_practice: string
   external_id: string
+  entity_type: string
+  corporation_name: string
   _error?: string
 }
 
@@ -33,6 +35,12 @@ const COLUMN_ALIASES: Record<string, string> = {
   id: 'external_id',
   'backoffice id': 'external_id',
   'advisor id': 'external_id',
+  'entity type': 'entity_type',
+  type: 'entity_type',
+  'corp name': 'corporation_name',
+  'corporation name': 'corporation_name',
+  'company name': 'corporation_name',
+  company: 'corporation_name',
 }
 
 function normalizeHeader(h: string): string {
@@ -53,6 +61,10 @@ function parseCSV(text: string): ParsedRow[] {
     const missing = REQUIRED.filter((f) => !row[f])
     if (missing.length > 0) {
       row._error = `Missing: ${missing.join(', ')}`
+    }
+
+    if (!row.entity_type || !['individual', 'corporation'].includes(row.entity_type)) {
+      row.entity_type = 'individual'
     }
 
     return row as ParsedRow
@@ -135,6 +147,8 @@ export default function ImportPage() {
           province: row.province || null,
           years_in_practice: row.years_in_practice ? parseInt(row.years_in_practice) : null,
           external_id: row.external_id || null,
+          entity_type: row.entity_type,
+          corporation_name: row.entity_type === 'corporation' ? (row.corporation_name || null) : null,
           imported_by: user?.id,
           status: 'pending',
         })
@@ -218,7 +232,7 @@ export default function ImportPage() {
               Expected columns
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {['full_name *', 'email *', 'phone', 'province', 'years_in_practice', 'external_id'].map((col) => (
+              {['full_name *', 'email *', 'phone', 'province', 'years_in_practice', 'external_id', 'entity_type', 'corporation_name'].map((col) => (
                 <span key={col} style={{
                   fontFamily: 'monospace',
                   fontSize: '12px',

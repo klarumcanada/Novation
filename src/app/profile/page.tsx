@@ -26,6 +26,11 @@ type AdvisorProfile = {
   avatar_url: string | null
 }
 
+type MgaEntityInfo = {
+  entity_type: string | null
+  corporation_name: string | null
+}
+
 type Valuation = {
   id: string
   low_value: number
@@ -88,7 +93,7 @@ function ConsentBox({ onConfirm, onCancel, label = 'I authorize — run calculat
   )
 }
 
-function BookValueSection() {
+function BookValueSection({ entityType }: { entityType: string | null }) {
   const router = useRouter()
   const [valuation, setValuation] = useState<Valuation | null | undefined>(undefined)
   const [loading, setLoading] = useState(true)
@@ -161,6 +166,11 @@ function BookValueSection() {
       ) : (
         <div>
           <div style={{ marginBottom: '10px' }}>
+            {entityType === 'corporation' && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', fontSize: '11px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', borderRadius: '20px', background: '#DBEAFE', color: '#1A3266', border: `1px solid ${BRAND.electric}`, marginBottom: '8px' }}>
+                Corporate book
+              </span>
+            )}
             <div style={{ fontFamily: 'Georgia, serif', fontSize: '26px', fontWeight: 600, color: BRAND.midnight }}>
               {formatMoney(valuation.low_value)} – {formatMoney(valuation.high_value)}
             </div>
@@ -191,6 +201,7 @@ export default function ProfilePage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
   const [profile, setProfile] = useState<AdvisorProfile | null>(null)
+  const [entityInfo, setEntityInfo] = useState<MgaEntityInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -203,6 +214,15 @@ export default function ProfilePage() {
         .eq('id', user.id)
         .single()
       if (data) setProfile(data)
+
+      const { data: mgaRecord } = await supabase
+        .from('mga_advisors')
+        .select('entity_type, corporation_name')
+        .eq('email', user.email)
+        .limit(1)
+        .maybeSingle()
+      if (mgaRecord?.entity_type) setEntityInfo(mgaRecord)
+
       setLoading(false)
     }
     fetchProfile()
@@ -356,7 +376,34 @@ export default function ProfilePage() {
               }
             </div>
 
-            {isSeller && <BookValueSection />}
+            {entityInfo && (
+              <>
+                <hr className="nov-divider" />
+                <div className="nov-section-label" style={{ marginBottom: '10px' }}>Entity Type</div>
+                <div>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: '4px 12px', fontSize: '12px', fontWeight: 500,
+                    fontFamily: 'DM Sans, sans-serif', borderRadius: '20px',
+                    background: entityInfo.entity_type === 'corporation' ? '#DBEAFE' : '#F3F4F6',
+                    color: entityInfo.entity_type === 'corporation' ? '#1D4ED8' : '#374151',
+                    border: `1px solid ${entityInfo.entity_type === 'corporation' ? '#BFDBFE' : '#E5E7EB'}`,
+                  }}>
+                    {entityInfo.entity_type === 'corporation' ? 'Corporation' : 'Individual'}
+                  </span>
+                </div>
+                {entityInfo.entity_type === 'corporation' && entityInfo.corporation_name && (
+                  <div style={{ marginTop: '14px' }}>
+                    <div className="nov-section-label" style={{ marginBottom: '6px' }}>Corporation Name</div>
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', color: '#0D1B3E' }}>
+                      {entityInfo.corporation_name}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {isSeller && <BookValueSection entityType={entityInfo?.entity_type ?? null} />}
           </div>
         </div>
       </div>

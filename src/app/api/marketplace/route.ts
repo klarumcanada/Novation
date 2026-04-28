@@ -54,10 +54,11 @@ export async function GET(request: NextRequest) {
   const minYears = searchParams.get('minYears')
   const maxYears = searchParams.get('maxYears')
   const timeline = searchParams.get('timeline')
+  const entityType = searchParams.get('entityType')
 
   let query = admin
     .from('advisors')
-  .select('id, full_name, province, years_in_practice, intent, aum, book_value, client_count, transition_duration, willing_to_stay, acquisition_budget, acquisition_timeline, target_provinces, target_cities, specialties, carrier_affiliations, bio, avatar_url')
+    .select('id, full_name, province, years_in_practice, intent, aum, book_value, client_count, transition_duration, willing_to_stay, acquisition_budget, acquisition_timeline, target_provinces, target_cities, specialties, carrier_affiliations, bio, avatar_url, entity_type')
     .eq('intent', targetIntent)
     .neq('id', user.id)
 
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
   if (minYears) query = query.gte('years_in_practice', Number(minYears))
   if (maxYears) query = query.lte('years_in_practice', Number(maxYears))
   if (timeline) query = query.eq('transition_duration', timeline)
+  if (entityType) query = query.eq('entity_type', entityType)
 
   const { data: advisors, error } = await query
 

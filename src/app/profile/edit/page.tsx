@@ -40,6 +40,11 @@ interface ProfileData {
   acq_geo_pref: string[]
   financing_status: string
   acq_timeline: string
+  buying_entity_type: string
+  open_to_seller_types: string[]
+  override_revenue: string
+  sub_advisor_count: string
+  hierarchy_depth: string
   avatar_url: string
 }
 
@@ -60,6 +65,11 @@ const empty: ProfileData = {
   acq_geo_pref: [],
   financing_status: '',
   acq_timeline: '',
+  buying_entity_type: '',
+  open_to_seller_types: [],
+  override_revenue: '',
+  sub_advisor_count: '',
+  hierarchy_depth: '',
   avatar_url: '',
 }
 
@@ -124,6 +134,8 @@ export default function ProfileEditPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  const [entityType, setEntityType] = useState<string | null>(null)
+
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
@@ -147,25 +159,45 @@ export default function ProfileEditPage() {
           acq_geo_pref: data.target_provinces ?? [],
           financing_status: data.financing_status ?? '',
           acq_timeline: data.acquisition_timeline ?? '',
+          buying_entity_type: data.buying_entity_type ?? '',
+          open_to_seller_types: data.open_to_seller_types ?? [],
+          override_revenue: data.override_revenue ? String(data.override_revenue) : '',
+          sub_advisor_count: data.sub_advisor_count != null ? String(data.sub_advisor_count) : '',
+          hierarchy_depth: data.hierarchy_depth != null ? String(data.hierarchy_depth) : '',
           avatar_url: data.avatar_url ?? '',
         })
       })
       .finally(() => setLoading(false))
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user?.email) return
+      supabase
+        .from('mga_advisors')
+        .select('entity_type')
+        .eq('email', user.email)
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => { if (data?.entity_type) setEntityType(data.entity_type) })
+    })
   }, [])
 
   function set<K extends keyof ProfileData>(key: K, value: ProfileData[K]) {
     setForm(f => ({ ...f, [key]: value }))
   }
 
-  function toggleMulti(key: 'specialties' | 'carrier_affiliations' | 'buyer_geo_pref' | 'acq_geo_pref', value: string) {
+  function toggleMulti(key: 'specialties' | 'carrier_affiliations' | 'buyer_geo_pref' | 'acq_geo_pref' | 'open_to_seller_types', value: string) {
     const list = form[key] as string[]
     set(key, list.includes(value) ? list.filter(v => v !== value) : [...list, value])
   }
 
   function runEstimator() {
-    if (!estRevenue || !estMix) return
+    if (!estMix) return
+    const revenue = (entityType === 'corporation' && form.override_revenue)
+      ? Number(form.override_revenue)
+      : Number(estRevenue)
+    if (!revenue) return
     const result = calcValuation(
-      Number(estRevenue), estMix, Number(estExpenseRatio),
+      revenue, estMix, Number(estExpenseRatio),
       form.transition_duration, Number(estRetention), Number(estYears) || 10,
     )
     setEstResult(result)
@@ -352,8 +384,36 @@ export default function ProfileEditPage() {
                   <input type="number" min="0" max="60" value={estYears} onChange={e => { setEstYears(e.target.value); setEstResult(null) }} placeholder="e.g. 15" style={{ ...inputStyle, width: '120px' }} />
                 </div>
 
-                <button type="button" onClick={runEstimator} disabled={!estRevenue || !estMix}
-                  style={{ width: '100%', padding: '11px', fontSize: '13px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: (!estRevenue || !estMix) ? '#d1d5db' : BRAND.electric, color: (!estRevenue || !estMix) ? '#9ca3af' : 'white', cursor: (!estRevenue || !estMix) ? 'not-allowed' : 'pointer' }}>
+                {entityType === 'corporation' && (
+                  <div style={{ marginBottom: '20px', padding: '16px', background: BRAND.ice, borderRadius: '10px', border: `1px solid ${BRAND.electric}22` }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: BRAND.navy, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: 'DM Sans, sans-serif', marginBottom: '14px' }}>Corporate book</div>
+
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={estLabel}>Override Revenue (CAD) — optional</label>
+                      <div style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>If provided, replaces the revenue entered above for this calculation.</div>
+                      <div style={{ position: 'relative' }}>
+                        <span style={currencyPrefix}>$</span>
+                        <input type="number" value={form.override_revenue} onChange={e => { set('override_revenue', e.target.value); setEstResult(null) }} placeholder="e.g. 800000" style={{ ...inputStyle, paddingLeft: '28px' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={estLabel}>Sub-advisor count</label>
+                        <input type="number" min="0" value={form.sub_advisor_count} onChange={e => set('sub_advisor_count', e.target.value)} placeholder="e.g. 4" style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={estLabel}>Hierarchy depth</label>
+                        <div style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'DM Sans, sans-serif', marginBottom: '6px' }}>1 = flat, 2 = one layer</div>
+                        <input type="number" min="1" value={form.hierarchy_depth} onChange={e => set('hierarchy_depth', e.target.value)} placeholder="e.g. 2" style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button type="button" onClick={runEstimator}
+                  disabled={!estMix || (!(entityType === 'corporation' && form.override_revenue) && !estRevenue)}
+                  style={{ width: '100%', padding: '11px', fontSize: '13px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', borderRadius: '8px', border: 'none', background: (!estMix || (!(entityType === 'corporation' && form.override_revenue) && !estRevenue)) ? '#d1d5db' : BRAND.electric, color: (!estMix || (!(entityType === 'corporation' && form.override_revenue) && !estRevenue)) ? '#9ca3af' : 'white', cursor: (!estMix || (!(entityType === 'corporation' && form.override_revenue) && !estRevenue)) ? 'not-allowed' : 'pointer' }}>
                   Calculate estimate
                 </button>
 
@@ -424,6 +484,26 @@ export default function ProfileEditPage() {
         {/* Buyer fields */}
         {form.intent === 'buying' && <>
           <Divider label="Acquisition criteria" />
+
+          <Field label="I am purchasing as">
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {(['individual', 'corporation'] as const).map(opt => (
+                <button key={opt} onClick={() => set('buying_entity_type', opt)} style={chipBtn(form.buying_entity_type === opt)}>
+                  {opt === 'individual' ? 'Individual' : 'Corporation'}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Open to purchasing from">
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {(['individual', 'corporation'] as const).map(opt => (
+                <button key={opt} onClick={() => toggleMulti('open_to_seller_types', opt)} style={chipBtn(form.open_to_seller_types.includes(opt))}>
+                  {opt === 'individual' ? 'Individual' : 'Corporation'}
+                </button>
+              ))}
+            </div>
+          </Field>
 
           <Field label="Acquisition budget">
             <div style={{ display: 'flex', gap: '10px' }}>

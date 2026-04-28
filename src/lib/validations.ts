@@ -56,6 +56,9 @@ const sellerFields = z.object({
   transition_duration: z.string().optional().nullable(),
   stay_on_postsale: z.boolean().optional().nullable(),
   buyer_geo_pref: z.array(z.string()).optional().nullable(),
+  override_revenue: z.coerce.number().positive().optional().nullable(),
+  sub_advisor_count: z.coerce.number().int().min(0).optional().nullable(),
+  hierarchy_depth: z.coerce.number().int().min(1).optional().nullable(),
 })
 
 const buyerFields = z.object({
@@ -64,6 +67,8 @@ const buyerFields = z.object({
   acq_geo_pref: z.array(z.string()).optional().nullable(),
   financing_status: z.string().optional().nullable(),
   acq_timeline: z.string().optional().nullable(),
+  buying_entity_type: z.enum(['individual', 'corporation']).optional().nullable(),
+  open_to_seller_types: z.array(z.enum(['individual', 'corporation'])).optional().nullable(),
 })
 
 export const profileEditSchema = z.object({

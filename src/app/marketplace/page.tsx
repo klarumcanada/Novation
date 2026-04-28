@@ -54,6 +54,7 @@ type Advisor = {
   carrier_affiliations: string[]
   bio: string | null
   avatar_url: string | null
+  entity_type: string | null
 }
 
 function formatMoney(value: number) {
@@ -96,6 +97,7 @@ export default function MarketplacePage() {
   const [minYears, setMinYears] = useState('')
   const [maxYears, setMaxYears] = useState('')
   const [timeline, setTimeline] = useState('')
+  const [sellerEntityType, setSellerEntityType] = useState('')
 
   const fetchAdvisors = useCallback(async () => {
     setLoading(true)
@@ -110,6 +112,7 @@ export default function MarketplacePage() {
     if (minYears) params.set('minYears', minYears)
     if (maxYears) params.set('maxYears', maxYears)
     if (timeline) params.set('timeline', timeline)
+    if (sellerEntityType) params.set('entityType', sellerEntityType)
 
     const [res, savesRes] = await Promise.all([
       fetch(`/api/marketplace?${params.toString()}`),
@@ -123,7 +126,7 @@ export default function MarketplacePage() {
     setMyIntent(data.myIntent ?? null)
     setSavedIds(savesData.saved ?? [])
     setLoading(false)
-  }, [province, selectedSpecialties, selectedCarriers, bookValueRange, budgetRange, minYears, maxYears, timeline])
+  }, [province, selectedSpecialties, selectedCarriers, bookValueRange, budgetRange, minYears, maxYears, timeline, sellerEntityType])
 
   useEffect(() => {
     if (savedIds.length === 0) { setSavedAdvisors([]); return }
@@ -148,6 +151,7 @@ export default function MarketplacePage() {
     setMinYears('')
     setMaxYears('')
     setTimeline('')
+    setSellerEntityType('')
   }
 
   const displayedAdvisors = tab === 'saved' ? savedAdvisors : advisors
@@ -176,6 +180,16 @@ export default function MarketplacePage() {
               {BOOK_VALUE_RANGES.map(r => (
                 <FilterChip key={r.label} label={r.label} active={bookValueRange?.label === r.label}
                   onClick={() => setBookValueRange(bookValueRange?.label === r.label ? null : r)} />
+              ))}
+            </FilterSection>
+          )}
+
+          {!isSeller && (
+            <FilterSection label="Seller entity type">
+              {(['', 'individual', 'corporation'] as const).map(v => (
+                <FilterChip key={v || 'any'} label={v === '' ? 'Any' : v === 'individual' ? 'Individual' : 'Corporation'}
+                  active={sellerEntityType === v}
+                  onClick={() => setSellerEntityType(sellerEntityType === v ? '' : v)} />
               ))}
             </FilterSection>
           )}
@@ -282,7 +296,18 @@ function SellerCard({ advisor, href }: { advisor: Advisor; href: string }) {
             <Avatar name={advisor.full_name} url={advisor.avatar_url} />
             <div>
               <div style={cardNameStyle}>{advisor.full_name}</div>
-              <div style={cardSubStyle}>{advisor.province} · {advisor.years_in_practice} yrs</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                <span style={cardSubStyle}>{advisor.province} · {advisor.years_in_practice} yrs</span>
+                <span style={{
+                  padding: '1px 7px', fontSize: '10px', fontFamily: 'DM Sans, sans-serif', fontWeight: 500,
+                  borderRadius: '20px', whiteSpace: 'nowrap',
+                  background: advisor.entity_type === 'corporation' ? BRAND.ice : '#F3F4F6',
+                  color: advisor.entity_type === 'corporation' ? BRAND.navy : '#6B7280',
+                  border: `1px solid ${advisor.entity_type === 'corporation' ? BRAND.electric : '#E5E7EB'}`,
+                }}>
+                  {advisor.entity_type === 'corporation' ? 'Corporation' : 'Individual'}
+                </span>
+              </div>
             </div>
           </div>
           <span style={sellerBadge}>Seller</span>

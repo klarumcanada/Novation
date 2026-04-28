@@ -12,6 +12,8 @@ type Advisor = {
   province: string | null
   years_in_practice: number | null
   external_id: string | null
+  entity_type: string | null
+  corporation_name: string | null
   status: string
   invited_at: string | null
   registered_at: string | null
@@ -225,6 +227,23 @@ export default function AdvisorsPage() {
                   <td>
                     <div className="mga-table-name">{advisor.full_name}</div>
                     <div className="mga-table-sub">{advisor.email}</div>
+                    {advisor.entity_type === 'corporation' && (
+                      <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          padding: '2px 8px', fontSize: '11px', fontWeight: 500,
+                          fontFamily: 'DM Sans, sans-serif', borderRadius: '20px',
+                          background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE',
+                        }}>
+                          Corporation
+                        </span>
+                        {advisor.corporation_name && (
+                          <span style={{ fontSize: '12px', color: 'var(--gray-500)' }}>
+                            {advisor.corporation_name}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td>{advisor.province ?? '—'}</td>
                   <td>
