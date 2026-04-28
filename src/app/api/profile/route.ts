@@ -118,9 +118,8 @@ export async function PATCH(request: Request) {
       if (inviteRecord?.mga_advisor_id) {
         await admin
           .from('mga_advisors')
-          .update({ status: 'registered' })
+          .update({ status: 'active' })
           .eq('id', inviteRecord.mga_advisor_id)
-          .neq('status', 'active') // don't downgrade active advisors
       }
     }
   }
