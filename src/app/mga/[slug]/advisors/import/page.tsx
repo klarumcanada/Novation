@@ -16,7 +16,6 @@ type ParsedRow = {
   _error?: string
 }
 
-const REQUIRED = ['full_name', 'email']
 const COLUMN_ALIASES: Record<string, string> = {
   name: 'full_name',
   'full name': 'full_name',
@@ -58,13 +57,25 @@ function parseCSV(text: string): ParsedRow[] {
     const row: any = {}
     headers.forEach((h, i) => { row[h] = values[i] ?? '' })
 
-    const missing = REQUIRED.filter((f) => !row[f])
-    if (missing.length > 0) {
-      row._error = `Missing: ${missing.join(', ')}`
-    }
-
     if (!row.entity_type || !['individual', 'corporation'].includes(row.entity_type)) {
       row.entity_type = 'individual'
+    }
+
+    const missing: string[] = []
+    if (!row.email) missing.push('email')
+
+    if (row.entity_type === 'corporation') {
+      if (!row.corporation_name) {
+        missing.push('corporation_name')
+      } else if (!row.full_name) {
+        row.full_name = row.corporation_name
+      }
+    } else {
+      if (!row.full_name) missing.push('full_name')
+    }
+
+    if (missing.length > 0) {
+      row._error = `Missing: ${missing.join(', ')}`
     }
 
     return row as ParsedRow
@@ -232,7 +243,16 @@ export default function ImportPage() {
               Expected columns
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {['full_name *', 'email *', 'phone', 'province', 'years_in_practice', 'external_id', 'entity_type', 'corporation_name'].map((col) => (
+              {[
+                { col: 'email', required: true },
+                { col: 'full_name', required: false, note: 'individual' },
+                { col: 'entity_type', required: false },
+                { col: 'corporation_name', required: false, note: 'corporation' },
+                { col: 'phone', required: false },
+                { col: 'province', required: false },
+                { col: 'years_in_practice', required: false },
+                { col: 'external_id', required: false },
+              ].map(({ col, required }) => (
                 <span key={col} style={{
                   fontFamily: 'monospace',
                   fontSize: '12px',
@@ -240,14 +260,14 @@ export default function ImportPage() {
                   background: 'var(--chalk)',
                   border: '1px solid rgba(11,31,58,0.08)',
                   borderRadius: '6px',
-                  color: col.includes('*') ? 'var(--midnight)' : 'var(--gray-500)'
+                  color: required ? 'var(--midnight)' : 'var(--gray-500)'
                 }}>
-                  {col}
+                  {required ? `${col} *` : col}
                 </span>
               ))}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '10px', fontWeight: 300 }}>
-              * Required. Common column name variations are handled automatically.
+              * Always required. full_name required for individuals; corporation_name required for corporations (full_name derived from it if omitted). entity_type defaults to individual.
             </div>
           </div>
         </div>
@@ -278,6 +298,7 @@ export default function ImportPage() {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Entity</th>
                   <th>Email</th>
                   <th>Province</th>
                   <th>Experience</th>
@@ -292,6 +313,9 @@ export default function ImportPage() {
                       <div className="mga-table-name" style={row._error ? { color: '#dc2626' } : {}}>
                         {row.full_name || '—'}
                       </div>
+                    </td>
+                    <td style={{ fontSize: '13px' }}>
+                      {row.entity_type === 'corporation' ? 'Corporation' : 'Individual'}
                     </td>
                     <td style={{ fontSize: '13px' }}>{row.email || '—'}</td>
                     <td style={{ fontSize: '13px' }}>{row.province || '—'}</td>

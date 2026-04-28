@@ -14,14 +14,15 @@ export default function NewAdvisorPage() {
   const router = useRouter()
 
   const [form, setForm] = useState({
-    full_name: '',
+    entity_type: 'individual',
+    first_name: '',
+    last_name: '',
+    corporation_name: '',
     email: '',
     phone: '',
     province: '',
     years_in_practice: '',
     external_id: '',
-    entity_type: 'individual',
-    corporation_name: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,11 @@ export default function NewAdvisorPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    const isCorporation = form.entity_type === 'corporation'
+    const full_name = isCorporation
+      ? form.corporation_name.trim()
+      : `${form.first_name.trim()} ${form.last_name.trim()}`.trim()
 
     const { data: mga } = await supabase
       .from('mgas')
@@ -58,14 +64,14 @@ export default function NewAdvisorPage() {
       .from('mga_advisors')
       .insert({
         mga_id: mga.id,
-        full_name: form.full_name.trim(),
+        full_name,
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() || null,
         province: form.province || null,
         years_in_practice: form.years_in_practice ? parseInt(form.years_in_practice) : null,
         external_id: form.external_id.trim() || null,
         entity_type: form.entity_type,
-        corporation_name: form.entity_type === 'corporation' ? (form.corporation_name.trim() || null) : null,
+        corporation_name: isCorporation ? (form.corporation_name.trim() || null) : null,
         imported_by: user?.id,
         status: 'pending',
       })
@@ -82,6 +88,8 @@ export default function NewAdvisorPage() {
 
     router.push(`/mga/${slug}/advisors`)
   }
+
+  const isCorporation = form.entity_type === 'corporation'
 
   return (
     <main className="mga-page">
@@ -107,16 +115,70 @@ export default function NewAdvisorPage() {
         <form onSubmit={handleSubmit}>
           <div className="mga-form-grid">
             <div className="mga-form-field">
-              <label className="mga-form-label">Full name *</label>
-              <input
-                className="mga-form-input"
-                name="full_name"
-                value={form.full_name}
-                onChange={handleChange}
-                placeholder="Jane Smith"
-                required
-              />
+              <label className="mga-form-label">Entity type</label>
+              <div style={{ display: 'flex', gap: '24px', marginTop: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
+                  <input
+                    type="radio"
+                    name="entity_type"
+                    value="individual"
+                    checked={!isCorporation}
+                    onChange={handleChange}
+                  />
+                  Individual
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
+                  <input
+                    type="radio"
+                    name="entity_type"
+                    value="corporation"
+                    checked={isCorporation}
+                    onChange={handleChange}
+                  />
+                  Corporation
+                </label>
+              </div>
             </div>
+
+            {isCorporation ? (
+              <div className="mga-form-field">
+                <label className="mga-form-label">Corporation name *</label>
+                <input
+                  className="mga-form-input"
+                  name="corporation_name"
+                  value={form.corporation_name}
+                  onChange={handleChange}
+                  placeholder="Smith Financial Corp."
+                  required
+                />
+              </div>
+            ) : (
+              <>
+                <div className="mga-form-field">
+                  <label className="mga-form-label">First name *</label>
+                  <input
+                    className="mga-form-input"
+                    name="first_name"
+                    value={form.first_name}
+                    onChange={handleChange}
+                    placeholder="Jane"
+                    required
+                  />
+                </div>
+
+                <div className="mga-form-field">
+                  <label className="mga-form-label">Last name *</label>
+                  <input
+                    className="mga-form-input"
+                    name="last_name"
+                    value={form.last_name}
+                    onChange={handleChange}
+                    placeholder="Smith"
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             <div className="mga-form-field">
               <label className="mga-form-label">Email *</label>
@@ -183,45 +245,6 @@ export default function NewAdvisorPage() {
                 placeholder="ADV-00123"
               />
             </div>
-
-            <div className="mga-form-field">
-              <label className="mga-form-label">Entity type</label>
-              <div style={{ display: 'flex', gap: '24px', marginTop: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
-                  <input
-                    type="radio"
-                    name="entity_type"
-                    value="individual"
-                    checked={form.entity_type === 'individual'}
-                    onChange={handleChange}
-                  />
-                  Individual
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
-                  <input
-                    type="radio"
-                    name="entity_type"
-                    value="corporation"
-                    checked={form.entity_type === 'corporation'}
-                    onChange={handleChange}
-                  />
-                  Corporation
-                </label>
-              </div>
-            </div>
-
-            {form.entity_type === 'corporation' && (
-              <div className="mga-form-field">
-                <label className="mga-form-label">Corporation name</label>
-                <input
-                  className="mga-form-input"
-                  name="corporation_name"
-                  value={form.corporation_name}
-                  onChange={handleChange}
-                  placeholder="Smith Financial Corp."
-                />
-              </div>
-            )}
           </div>
 
           <div className="mga-form-actions">
