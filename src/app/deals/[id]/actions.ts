@@ -4,10 +4,19 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
-// Required DB migration before using this action:
+// Required DB migrations:
 //   ALTER TABLE deal_clients ADD COLUMN IF NOT EXISTS carrier   text;
 //   ALTER TABLE deal_clients ADD COLUMN IF NOT EXISTS policy_id text;
 //   ALTER TABLE deal_clients ADD COLUMN IF NOT EXISTS source    text;
+//
+//   CREATE TABLE IF NOT EXISTS deal_carrier_transfers (
+//     id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+//     deal_id      uuid NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+//     carrier_name text NOT NULL,
+//     status       text NOT NULL DEFAULT 'pending',
+//     updated_at   timestamptz NOT NULL DEFAULT now(),
+//     UNIQUE (deal_id, carrier_name)
+//   );
 
 // ── Contracting validation ────────────────────────────────────────────────────
 
@@ -25,6 +34,115 @@ const CONTRACTING_SEED: CarrierContractingRow[] = [
   { carrier: 'Empire Life',   sellerPolicies: 5,  buyerStatus: 'missing' },
   { carrier: 'RBC Insurance', sellerPolicies: 3,  buyerStatus: 'missing' },
 ]
+
+// ── Carrier transfer persistence ─────────────────────────────────────────────
+
+export type CarrierTransferRow = {
+  carrier_name: string
+  status: string
+}
+
+async function makeClients() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+  )
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  return { supabase, admin }
+}
+
+export async function loadBookTransfer(dealId: string): Promise<{
+  sellerCarriers: string[]
+  transfers: CarrierTransferRow[]
+}> {
+  const { supabase, admin } = await makeClients()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('seller_id, buyer_id')
+    .eq('id', dealId)
+    .single()
+
+  if (!deal || (deal.seller_id !== user.id && deal.buyer_id !== user.id)) {
+    throw new Error('Unauthorized')
+  }
+
+  const { data: seller } = await admin
+    .from('advisors')
+    .select('carrier_affiliations')
+    .eq('id', deal.seller_id)
+    .single()
+
+  const sellerCarriers: string[] = seller?.carrier_affiliations ?? []
+
+  const { data: rows } = await admin
+    .from('deal_carrier_transfers')
+    .select('carrier_name, status')
+    .eq('deal_id', dealId)
+
+  return { sellerCarriers, transfers: (rows ?? []) as CarrierTransferRow[] }
+}
+
+export async function upsertCarrierTransfer(
+  dealId: string,
+  carrierName: string,
+  status: string
+): Promise<void> {
+  const { supabase, admin } = await makeClients()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('seller_id, buyer_id')
+    .eq('id', dealId)
+    .single()
+
+  if (!deal || deal.buyer_id !== user.id) throw new Error('Unauthorized')
+
+  const { error } = await admin
+    .from('deal_carrier_transfers')
+    .upsert(
+      { deal_id: dealId, carrier_name: carrierName, status, updated_at: new Date().toISOString() },
+      { onConflict: 'deal_id,carrier_name' }
+    )
+
+  if (error) throw new Error(error.message)
+
+  // Check if all seller carriers are now complete → stamp book_transfer_completed_at
+  const { data: seller } = await admin
+    .from('advisors')
+    .select('carrier_affiliations')
+    .eq('id', deal.seller_id)
+    .single()
+
+  const sellerCarriers: string[] = seller?.carrier_affiliations ?? []
+
+  if (sellerCarriers.length > 0) {
+    const { data: allRows } = await admin
+      .from('deal_carrier_transfers')
+      .select('status')
+      .eq('deal_id', dealId)
+
+    const completeCount = (allRows ?? []).filter(r => r.status === 'complete').length
+    if (completeCount >= sellerCarriers.length) {
+      await admin
+        .from('deals')
+        .update({ book_transfer_completed_at: new Date().toISOString() })
+        .eq('id', dealId)
+        .is('book_transfer_completed_at', null)
+    }
+  }
+}
 
 // ── Book transfer complete ────────────────────────────────────────────────────
 // Required DB migration:

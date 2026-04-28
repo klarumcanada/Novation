@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NovationNav from '@/components/NovationNav'
-import { importClientsFromMGA, importPoliciesFromMGA, validateContracting, completeBookTransfer, CarrierContractingRow } from './actions'
+import { importClientsFromMGA, importPoliciesFromMGA, validateContracting, completeBookTransfer, loadBookTransfer, upsertCarrierTransfer, CarrierContractingRow } from './actions'
 
 const BRAND = {
   midnight: '#0D1B3E',
@@ -1604,9 +1604,8 @@ function ClientCommunicationsTab({ dealId, deal, onRefresh, canceled }: { dealId
 type TransferStatus = 'pending' | 'submitted' | 'in_progress' | 'complete'
 
 type TransferRow = {
-  carrier:  string
-  policies: number
-  status:   TransferStatus
+  carrier: string
+  status:  TransferStatus
 }
 
 const BUYER_STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
@@ -1640,11 +1639,26 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
   const [validating,       setValidating]       = useState(false)
   const [carriers,         setCarriers]         = useState<CarrierContractingRow[]>([])
   const [resolvingCarrier, setResolvingCarrier] = useState<string | null>(null)
+  const [sellerCarriers,   setSellerCarriers]   = useState<string[]>([])
   const [transfers,        setTransfers]        = useState<TransferRow[]>([])
   const [completing,       setCompleting]       = useState(false)
   const [btError,          setBtError]          = useState('')
 
   const isBuyer = !deal.is_seller
+
+  // Load persisted transfer rows on mount
+  useEffect(() => {
+    loadBookTransfer(dealId)
+      .then(({ sellerCarriers: sc, transfers: rows }) => {
+        setSellerCarriers(sc)
+        if (rows.length > 0) {
+          const dbMap = new Map(rows.map(r => [r.carrier_name, r.status as TransferStatus]))
+          setTransfers(sc.map(c => ({ carrier: c, status: dbMap.get(c) ?? 'pending' })))
+          setPhase(2)
+        }
+      })
+      .catch(console.error)
+  }, [dealId])
 
   const btReached = deal.status === 'book_transfer' || deal.status === 'closed'
   if (!btReached) return <PlaceholderTab title="Not yet reached" description="Book Transfer becomes available once Client Communications is complete." />
@@ -1670,8 +1684,13 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
     setResolvingCarrier(null)
   }
 
-  function proceedToPhase2() {
-    setTransfers(carriers.map(c => ({ carrier: c.carrier, policies: c.sellerPolicies, status: 'pending' as const })))
+  async function proceedToPhase2() {
+    const carrierList = sellerCarriers.length > 0 ? sellerCarriers : carriers.map(c => c.carrier)
+    // Persist initial rows (skip carriers already in DB)
+    await Promise.all(
+      carrierList.map(c => upsertCarrierTransfer(dealId, c, 'pending').catch(() => {}))
+    )
+    setTransfers(carrierList.map(c => ({ carrier: c, status: 'pending' as const })))
     setPhase(2)
   }
 
@@ -1680,12 +1699,20 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
 
   // ── Phase 2 helpers ────────────────────────────────────────────────────────
 
-  function advanceTransfer(carrier: string) {
-    setTransfers(prev => prev.map(t => {
-      if (t.carrier !== carrier) return t
-      const next = TRANSFER_NEXT_STATUS[t.status]
-      return next ? { ...t, status: next } : t
-    }))
+  async function advanceTransfer(carrier: string) {
+    const current = transfers.find(t => t.carrier === carrier)
+    if (!current) return
+    const next = TRANSFER_NEXT_STATUS[current.status]
+    if (!next) return
+    // Optimistic update
+    setTransfers(prev => prev.map(t => t.carrier === carrier ? { ...t, status: next } : t))
+    try {
+      await upsertCarrierTransfer(dealId, carrier, next)
+    } catch (e) {
+      // Revert on failure
+      setTransfers(prev => prev.map(t => t.carrier === carrier ? { ...t, status: current.status } : t))
+      alert('Failed to save transfer status. Please try again.')
+    }
   }
 
   async function markBookTransferComplete() {
@@ -1880,7 +1907,6 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
               <thead>
                 <tr style={{ background: '#F7F7F6' }}>
                   <th style={thStyle}>Carrier</th>
-                  <th style={thStyle}>Policies</th>
                   <th style={thStyle}>Transfer status</th>
                   <th style={{ ...thStyle, width: 180 }}></th>
                 </tr>
@@ -1894,7 +1920,6 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                   return (
                     <tr key={row.carrier}>
                       <td style={{ ...tdFinal, fontWeight: 500 }}>{row.carrier}</td>
-                      <td style={tdFinal}>{row.policies}</td>
                       <td style={tdFinal}>
                         <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                       </td>
