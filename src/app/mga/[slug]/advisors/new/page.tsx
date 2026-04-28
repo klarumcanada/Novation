@@ -20,6 +20,8 @@ export default function NewAdvisorPage() {
     province: '',
     years_in_practice: '',
     external_id: '',
+    entity_type: 'individual',
+    corporation_name: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +64,8 @@ export default function NewAdvisorPage() {
         province: form.province || null,
         years_in_practice: form.years_in_practice ? parseInt(form.years_in_practice) : null,
         external_id: form.external_id.trim() || null,
+        entity_type: form.entity_type,
+        corporation_name: form.entity_type === 'corporation' ? (form.corporation_name.trim() || null) : null,
         imported_by: user?.id,
         status: 'pending',
       })
@@ -179,6 +183,45 @@ export default function NewAdvisorPage() {
                 placeholder="ADV-00123"
               />
             </div>
+
+            <div className="mga-form-field">
+              <label className="mga-form-label">Entity type</label>
+              <div style={{ display: 'flex', gap: '24px', marginTop: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
+                  <input
+                    type="radio"
+                    name="entity_type"
+                    value="individual"
+                    checked={form.entity_type === 'individual'}
+                    onChange={handleChange}
+                  />
+                  Individual
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
+                  <input
+                    type="radio"
+                    name="entity_type"
+                    value="corporation"
+                    checked={form.entity_type === 'corporation'}
+                    onChange={handleChange}
+                  />
+                  Corporation
+                </label>
+              </div>
+            </div>
+
+            {form.entity_type === 'corporation' && (
+              <div className="mga-form-field">
+                <label className="mga-form-label">Corporation name</label>
+                <input
+                  className="mga-form-input"
+                  name="corporation_name"
+                  value={form.corporation_name}
+                  onChange={handleChange}
+                  placeholder="Smith Financial Corp."
+                />
+              </div>
+            )}
           </div>
 
           <div className="mga-form-actions">
