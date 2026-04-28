@@ -1644,6 +1644,8 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
   const [completing,       setCompleting]       = useState(false)
   const [btError,          setBtError]          = useState('')
 
+  const isBuyer = !deal.is_seller
+
   const btReached = deal.status === 'book_transfer' || deal.status === 'closed'
   if (!btReached) return <PlaceholderTab title="Not yet reached" description="Book Transfer becomes available once Client Communications is complete." />
 
@@ -1714,8 +1716,8 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
   return (
     <div style={{ padding: '28px 32px' }}>
 
-      {/* Validation consent modal */}
-      {showModal && (
+      {/* Validation consent modal — buyer only */}
+      {isBuyer && showModal && (
         <CCModalOverlay onClose={validating ? () => {} : () => setShowModal(false)}>
           <style>{`@keyframes bt-spin { to { transform: rotate(360deg); } }`}</style>
           <div style={{ fontFamily: 'DM Sans, sans-serif' }}>
@@ -1765,9 +1767,15 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
               <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', maxWidth: 380, margin: '0 auto 24px' }}>
                 Contracting will be validated against the buying advisor's records via a third-party authority. No changes are made.
               </div>
-              <button onClick={() => setShowModal(true)} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
-                Validate contracting via third-party authority
-              </button>
+              {isBuyer ? (
+                <button onClick={() => setShowModal(true)} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: BRAND.midnight, color: 'white', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: 'pointer' }}>
+                  Validate contracting via third-party authority
+                </button>
+              ) : (
+                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>
+                  Awaiting contracting validation by the buying advisor.
+                </div>
+              )}
             </div>
           ) : (
             /* Loaded state */
@@ -1815,7 +1823,7 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                             <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: bs.bg, color: bs.color }}>{bs.label}</span>
                           </td>
                           <td style={tdFinal}>
-                            {row.buyerStatus === 'missing' && (
+                            {isBuyer && row.buyerStatus === 'missing' && (
                               <button
                                 onClick={() => resolveCarrier(row.carrier)}
                                 disabled={resolving}
@@ -1832,16 +1840,18 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                 </table>
               </div>
 
-              {/* Proceed button */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={proceedToPhase2}
-                  disabled={!allResolvable}
-                  style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: allResolvable ? BRAND.midnight : '#E5E7EB', color: allResolvable ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: allResolvable ? 'pointer' : 'not-allowed' }}
-                >
-                  Proceed to policy transfer →
-                </button>
-              </div>
+              {/* Proceed button — buyer only */}
+              {isBuyer && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={proceedToPhase2}
+                    disabled={!allResolvable}
+                    style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: allResolvable ? BRAND.midnight : '#E5E7EB', color: allResolvable ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 500, fontFamily: 'DM Sans, sans-serif', cursor: allResolvable ? 'pointer' : 'not-allowed' }}
+                  >
+                    Proceed to policy transfer →
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1889,7 +1899,7 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
                         <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                       </td>
                       <td style={tdFinal}>
-                        {nextLabel && (
+                        {isBuyer && nextLabel && (
                           <button
                             onClick={() => advanceTransfer(row.carrier)}
                             style={{ fontSize: 12, fontFamily: 'DM Sans, sans-serif', color: BRAND.electric, background: 'none', border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}
@@ -1908,18 +1918,26 @@ function BookTransferTab({ dealId, deal, onRefresh }: { dealId: string; deal: an
           {/* Mark complete */}
           {deal.status === 'book_transfer' && (
             <>
-              <button
-                onClick={markBookTransferComplete}
-                disabled={completing || !allTransfersDone}
-                style={{ width: '100%', padding: '13px 20px', borderRadius: 8, border: 'none', background: allTransfersDone ? BRAND.midnight : '#E5E7EB', color: allTransfersDone ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: 'DM Sans, sans-serif', cursor: (completing || !allTransfersDone) ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1, marginBottom: 8 }}
-              >
-                {completing ? 'Saving…' : 'Mark Book Transfer Complete'}
-              </button>
-              {btError ? (
-                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#E24B4A' }}>{btError}</div>
+              {isBuyer ? (
+                <>
+                  <button
+                    onClick={markBookTransferComplete}
+                    disabled={completing || !allTransfersDone}
+                    style={{ width: '100%', padding: '13px 20px', borderRadius: 8, border: 'none', background: allTransfersDone ? BRAND.midnight : '#E5E7EB', color: allTransfersDone ? 'white' : '#9CA3AF', fontSize: 13, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: 'DM Sans, sans-serif', cursor: (completing || !allTransfersDone) ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1, marginBottom: 8 }}
+                  >
+                    {completing ? 'Saving…' : 'Mark Book Transfer Complete'}
+                  </button>
+                  {btError ? (
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#E24B4A' }}>{btError}</div>
+                  ) : (
+                    <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
+                      {allTransfersDone ? 'All carriers complete. Click to advance to Deal Complete.' : 'All carriers must reach Complete status before advancing.'}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#9CA3AF' }}>
-                  {allTransfersDone ? 'All carriers complete. Click to advance to Deal Complete.' : 'All carriers must reach Complete status before advancing.'}
+                  {allTransfersDone ? 'All carriers complete. Awaiting buyer confirmation to close.' : 'Transfer in progress — awaiting buyer to advance each carrier.'}
                 </div>
               )}
             </>
