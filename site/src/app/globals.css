@@ -133,17 +133,21 @@ body {
 .nav-dropdown-menu {
   display: none;
   position: absolute;
-  top: calc(100% + 14px);
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
+  padding-top: 14px;
+  min-width: 160px;
+  list-style: none;
+  z-index: 200;
+}
+
+.nav-dropdown-menu-inner {
   background: white;
   border: 1px solid rgba(11, 31, 58, 0.1);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(11, 31, 58, 0.1);
   padding: 6px;
-  min-width: 160px;
-  list-style: none;
-  z-index: 200;
 }
 
 .nav-dropdown:hover .nav-dropdown-menu {

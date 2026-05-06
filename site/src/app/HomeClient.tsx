@@ -68,8 +68,10 @@ export default function Home() {
               </svg>
             </span>
             <ul className="nav-dropdown-menu">
-              <li><a href="/novation/mgas">For MGAs</a></li>
-              <li><a href="/novation/advisors">For Advisors</a></li>
+              <div className="nav-dropdown-menu-inner">
+                <li><a href="/novation/mgas">For MGAs</a></li>
+                <li><a href="/novation/advisors">For Advisors</a></li>
+              </div>
             </ul>
           </li>
           <li><a href="#contact">Contact</a></li>
