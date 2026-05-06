@@ -90,7 +90,7 @@ export default function Home() {
           Klarum builds tools that MGAs and advisors need — so you can stay focused on clients and growth.
         </p>
         <div className="hero-actions">
-          <a href="#novation" className="btn-primary">See Novation →</a>
+          <a href="/novation/mgas" className="btn-primary">See Novation →</a>
           <button className="btn-ghost" onClick={() => scrollTo("about")}>
             Learn more <span className="arrow">→</span>
           </button>
