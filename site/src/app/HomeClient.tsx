@@ -49,12 +49,12 @@ export default function Home() {
       <nav className="nav">
         <a href="#" className="nav-logo">
           <svg width="38" height="26" viewBox="0 0 44 30" fill="none">
-            <rect x="1" y="1" width="3.5" height="28" fill="#0D1B3E"/>
-            <path d="M4.5 15 L18 1" stroke="#0D1B3E" stroke-width="3" stroke-linecap="square"/>
-            <path d="M4.5 15 L18 29" stroke="#0D1B3E" stroke-width="3" stroke-linecap="square"/>
-            <line x1="18" y1="4" x2="34" y2="15" stroke="#0D1B3E" stroke-width="0.75" opacity="0.35"/>
-            <line x1="18" y1="26" x2="34" y2="15" stroke="#0D1B3E" stroke-width="0.75" opacity="0.35"/>
-            <circle cx="34" cy="15" r="7" fill="#3B82F6"/>
+            <rect x="1" y="1" width="3.5" height="28" fill="#0D1B3E" />
+            <path d="M4.5 15 L18 1" stroke="#0D1B3E" strokeWidth="3" strokeLinecap="square" />
+            <path d="M4.5 15 L18 29" stroke="#0D1B3E" strokeWidth="3" strokeLinecap="square" />
+            <line x1="18" y1="4" x2="34" y2="15" stroke="#0D1B3E" strokeWidth="0.75" opacity="0.35" />
+            <line x1="18" y1="26" x2="34" y2="15" stroke="#0D1B3E" strokeWidth="0.75" opacity="0.35" />
+            <circle cx="34" cy="15" r="7" fill="#3B82F6" />
           </svg>
           <span className="nav-logo-text">klarum</span>
         </a>
@@ -64,7 +64,7 @@ export default function Home() {
             <span className="nav-dropdown-trigger">
               Novation
               <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
-                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
             <ul className="nav-dropdown-menu">
@@ -73,7 +73,6 @@ export default function Home() {
             </ul>
           </li>
           <li><a href="#contact">Contact</a></li>
-          <li><a href="/login" className="nav-cta">Login</a></li>
         </ul>
       </nav>
 
