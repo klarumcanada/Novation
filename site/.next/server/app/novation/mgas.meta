@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/novation/layout,_N_T_/novation/mgas/layout,_N_T_/novation/mgas/page,_N_T_/novation/mgas"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/novation/mgas/__PAGE__",
+    "/novation/mgas",
+    "/novation",
+    "/_index",
+    "/_head"
+  ]
+}

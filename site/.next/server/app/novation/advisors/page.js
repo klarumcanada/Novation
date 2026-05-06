@@ -1,0 +1,13 @@
+var R=require("../../../chunks/ssr/[turbopack]_runtime.js")("server/app/novation/advisors/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0r.pc05._.js")
+R.c("server/chunks/ssr/129d_next_dist_esm_build_templates_app-page_0zlr6l6.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0qhwe7y._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0bqtdr9._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0aawctt._.js")
+R.c("server/chunks/ssr/129d_next_dist_client_components_03ayt0s._.js")
+R.c("server/chunks/ssr/129d_next_dist_client_components_builtin_forbidden_0pwd.q6.js")
+R.c("server/chunks/ssr/129d_next_dist_client_components_builtin_unauthorized_0jeu.on.js")
+R.c("server/chunks/ssr/129d_next_dist_client_components_builtin_global-error_0zh59k8.js")
+R.c("server/chunks/ssr/site__next-internal_server_app_novation_advisors_page_actions_06g_jgf.js")
+R.m(53575)
+module.exports=R.m(53575).exports
