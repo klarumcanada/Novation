@@ -1,10 +1,5 @@
-import type { Metadata } from 'next'
-import HomeClient from './HomeClient'
-
-export const metadata: Metadata = {
-  title: 'Klarum — We handle the tech. You handle the business.',
-}
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return <HomeClient />
+  redirect('/login')
 }

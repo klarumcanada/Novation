@@ -60,7 +60,18 @@ export default function Home() {
         </a>
         <ul className="nav-links">
           <li><a href="#about">About</a></li>
-          <li><a href="#novation">Novation</a></li>
+          <li className="nav-dropdown">
+            <span className="nav-dropdown-trigger">
+              Novation
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+            <ul className="nav-dropdown-menu">
+              <li><a href="/novation/mgas">For MGAs</a></li>
+              <li><a href="/novation/advisors">For Advisors</a></li>
+            </ul>
+          </li>
           <li><a href="#contact">Contact</a></li>
           <li><a href="/login" className="nav-cta">Login</a></li>
         </ul>
