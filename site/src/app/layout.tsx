@@ -19,9 +19,15 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Klarum",
+  title: "Klarum — Advisor Succession Marketplace for Canadian MGAs",
   description:
-    "Klarum builds tools that MGAs and advisors need — so you can stay focused on clients and growth.",
+    "Novation by Klarum is a book-of-business succession marketplace built for Canadian life insurance MGAs and advisors. Support retiring advisors, grow newer ones, and keep every transition inside your ecosystem.",
+  openGraph: {
+    title: "Klarum — Advisor Succession Marketplace for Canadian MGAs",
+    description:
+      "Novation by Klarum is a book-of-business succession marketplace built for Canadian life insurance MGAs and advisors. Support retiring advisors, grow newer ones, and keep every transition inside your ecosystem.",
+    url: "https://klarum.ca",
+  },
 };
 
 export default function RootLayout({

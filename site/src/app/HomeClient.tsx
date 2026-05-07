@@ -149,6 +149,9 @@ export default function Home() {
               <p className="section-body">
                 Novation is the first purpose-built marketplace for Canadian advisor succession. Sellers find qualified buyers. MGAs protect their books. Everyone moves forward with confidence.
               </p>
+              <p className="section-body" style={{ marginTop: '16px' }}>
+                With thousands of Canadian life insurance advisors approaching retirement, MGAs need more than seminars and referrals. Novation provides a structured, MGA-controlled succession marketplace — so retiring advisors exit with confidence, newer advisors build their books faster, and the business stays in your network.
+              </p>
             </div>
           </div>
           <div ref={addRef} className="novation-cards fade-in">
