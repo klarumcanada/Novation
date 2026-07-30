@@ -42,8 +42,23 @@ export default function AdvisorsPage() {
           <span className="nav-logo-text">klarum</span>
         </Link>
         <ul className="nav-links">
-          <li><Link href="/novation/advisors" className="active">Advisors</Link></li>
-          <li><Link href="/novation/mgas">For MGAs</Link></li>
+          <li className="nav-dropdown">
+            <span className="nav-dropdown-trigger">
+              Products
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <ul className="nav-dropdown-menu">
+              <div className="nav-dropdown-menu-inner">
+                <div className="nav-dropdown-section-label">Novation</div>
+                <li><Link href="/novation/mgas">For MGAs</Link></li>
+                <li><Link href="/novation/advisors" className="active">For Advisors</Link></li>
+                <div className="nav-dropdown-divider" />
+                <li><Link href="/agora">Agora</Link></li>
+              </div>
+            </ul>
+          </li>
           <li><Link href="/login" className="nav-cta">Get started</Link></li>
         </ul>
       </nav>

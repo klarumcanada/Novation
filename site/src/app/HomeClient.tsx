@@ -62,15 +62,18 @@ export default function Home() {
           <li><a href="#about">About</a></li>
           <li className="nav-dropdown">
             <span className="nav-dropdown-trigger">
-              Novation
+              Products
               <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
                 <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
             <ul className="nav-dropdown-menu">
               <div className="nav-dropdown-menu-inner">
+                <div className="nav-dropdown-section-label">Novation</div>
                 <li><a href="/novation/mgas">For MGAs</a></li>
                 <li><a href="/novation/advisors">For Advisors</a></li>
+                <div className="nav-dropdown-divider" />
+                <li><a href="/agora">Agora</a></li>
               </div>
             </ul>
           </li>
@@ -147,7 +150,7 @@ export default function Home() {
                 Book-of-business succession,<br />done right.
               </h2>
               <p className="section-body">
-                Novation is the first purpose-built marketplace for Canadian advisor succession. Sellers find qualified buyers. MGAs protect their books. Everyone moves forward with confidence.
+                Novation is the first purpose-built succession platform for Canadian life insurance advisors. From matching through valuation, due diligence, and book transfer — MGAs stay in control and every transition closes with confidence.
               </p>
               <p className="section-body" style={{ marginTop: '16px' }}>
                 With thousands of Canadian life insurance advisors approaching retirement, MGAs need more than seminars and referrals. Novation provides a structured, MGA-controlled succession marketplace — so retiring advisors exit with confidence, newer advisors build their books faster, and the business stays in your network.
@@ -183,6 +186,40 @@ export default function Home() {
         </div>
       </section>
 
+      {/* AGORA */}
+      <section id="agora" className="agora-outer">
+        <div className="novation-section">
+          <div ref={addRef} className="novation-header fade-in">
+            <div>
+              <div className="product-badge">Coming soon</div>
+              <div className="section-label">Agora</div>
+              <h2 className="section-title">
+                The open marketplace for<br />advisors and small firms.
+              </h2>
+              <p className="section-body">
+                Agora is a lightweight, self-serve marketplace for advisors and small companies to list and discover book-of-business opportunities — no MGA relationship required to get started. When a deal needs the full structure of valuation, due diligence, and formal transfer, it moves into Novation.
+              </p>
+            </div>
+          </div>
+          <div ref={addRef} className="novation-cards agora-cards fade-in">
+            <div className="nov-card">
+              <div className="nov-card-num">01</div>
+              <div className="nov-card-title">List or browse</div>
+              <p className="nov-card-body">
+                Advisors post a book or browse what&apos;s available, no gatekeeping.
+              </p>
+            </div>
+            <div className="nov-card">
+              <div className="nov-card-num">02</div>
+              <div className="nov-card-title">Move to Novation</div>
+              <p className="nov-card-body">
+                When you&apos;re ready to formalize a deal, bring it into Novation&apos;s structured transaction process.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="cta-section" id="contact">
         <h2 ref={addRef} className="cta-title fade-in">
@@ -214,6 +251,7 @@ export default function Home() {
         <span className="footer-logo">Klarum</span>
         <ul className="footer-links">
           <li><a href="#novation">Novation</a></li>
+          <li><a href="#agora">Agora</a></li>
           <li><a href="#contact">Contact</a></li>
           <li><a href="#">Privacy</a></li>
         </ul>

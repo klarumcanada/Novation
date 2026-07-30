@@ -175,6 +175,21 @@ body {
   color: var(--electric) !important;
 }
 
+.nav-dropdown-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  padding: 6px 12px 2px;
+}
+
+.nav-dropdown-divider {
+  height: 1px;
+  background: rgba(11, 31, 58, 0.08);
+  margin: 4px 8px;
+}
+
 /* ── HERO ── */
 .hero {
   min-height: 100vh;
@@ -472,6 +487,18 @@ section {
   display: flex;
   align-items: center;
   gap: 24px;
+}
+
+/* ── AGORA ── */
+.agora-outer {
+  padding: 100px 48px;
+  background: var(--chalk);
+  border-top: 1px solid rgba(11, 31, 58, 0.06);
+  border-bottom: 1px solid rgba(11, 31, 58, 0.06);
+}
+
+.agora-cards {
+  grid-template-columns: repeat(2, 1fr) !important;
 }
 
 /* ── TEAM ── */

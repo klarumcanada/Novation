@@ -55,8 +55,23 @@ export default function MGAsPage() {
           <span className="nav-logo-text">klarum</span>
         </Link>
         <ul className="nav-links">
-          <li><Link href="/novation/advisors">Advisors</Link></li>
-          <li><Link href="/novation/mgas" className="active">MGAs</Link></li>
+          <li className="nav-dropdown">
+            <span className="nav-dropdown-trigger">
+              Products
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <ul className="nav-dropdown-menu">
+              <div className="nav-dropdown-menu-inner">
+                <div className="nav-dropdown-section-label">Novation</div>
+                <li><Link href="/novation/mgas" className="active">For MGAs</Link></li>
+                <li><Link href="/novation/advisors">For Advisors</Link></li>
+                <div className="nav-dropdown-divider" />
+                <li><Link href="/agora">Agora</Link></li>
+              </div>
+            </ul>
+          </li>
           <li><a href="#get-started" className="nav-cta">Request a demo</a></li>
         </ul>
       </nav>
