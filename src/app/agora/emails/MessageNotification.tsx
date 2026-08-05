@@ -18,14 +18,14 @@ export default function MessageNotification({
   return (
     <Html>
       <Head />
-      <Preview>{fromName} sent you a message on Novation</Preview>
+      <Preview>{fromName} sent you a message on Agora</Preview>
       <Body style={{ backgroundColor: '#F0EDE7', fontFamily: 'DM Sans, sans-serif', margin: 0, padding: '40px 0' }}>
         <Container style={{ maxWidth: '560px', margin: '0 auto' }}>
 
           {/* Logo bar */}
           <Section style={{ marginBottom: '24px' }}>
             <Text style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.08em', color: '#0D1B3E', margin: 0 }}>
-              KLARUM · NOVATION
+              KLARUM · AGORA
             </Text>
           </Section>
 
@@ -79,7 +79,7 @@ export default function MessageNotification({
           {/* Footer */}
           <Section style={{ marginTop: '24px' }}>
             <Text style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: 0 }}>
-              Novation by Klarum · You're receiving this because someone messaged you on the platform.
+              Agora by Klarum · You're receiving this because someone messaged you on the platform.
             </Text>
           </Section>
 
