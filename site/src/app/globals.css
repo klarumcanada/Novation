@@ -7,9 +7,12 @@
 :root {
   --navy: #1A3266;
   --midnight: #0D1B3E;
-  --electric: #3B82F6;
+  --electric: #3B82F6;       /* Klarum's accent only — never used for Agora UI */
+  --meadow: oklch(80% 0.28 145); /* Agora's accent only — never a large surface fill */
+  --meadow-text: #16803d; /* darker equivalent for small text/labels — raw Meadow fails contrast as text on light backgrounds */
   --electric-light: #DBEAFE;
-  --voltage: #E8C547;
+  --ice: #DBEAFE;             /* brand-neutral name for the same shared accent-light token */
+  --voltage: #E8C547;         /* highlight only — never a fill or background */
   --sky: #EFF6FF;
   --white: #FFFFFF;
   --chalk: #F8F7F4;
@@ -17,7 +20,7 @@
   --gray-300: #CBD5E1;
   --gray-500: #64748B;
   --gray-700: #334155;
-  --serif: var(--font-serif), Georgia, serif;
+  --serif: var(--font-serif), Georgia, serif; /* DM Serif Display, italic only */
   --sans: var(--font-sans), system-ui, sans-serif;
 }
 
@@ -61,12 +64,41 @@ body {
   text-decoration: none;
 }
 
-.nav-logo-text {
-  font-family: var(--serif);
-  font-size: 22px;
+.nav-product-label {
+  font-family: var(--sans);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-left: 2px;
+}
+
+.agora-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agora-logo-text {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 20px;
   color: var(--midnight);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+.nav-lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-decoration: none;
+}
+
+.nav-lockup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nav-links {
@@ -76,17 +108,45 @@ body {
   list-style: none;
 }
 
-.nav-links a {
+.nav-links a,
+.nav-link-btn {
+  font-family: var(--sans);
   font-size: 14px;
   font-weight: 400;
   color: var(--gray-700);
   text-decoration: none;
   letter-spacing: 0.01em;
   transition: color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .nav-links a:hover {
   color: var(--electric);
+}
+
+.nav-link-btn:hover {
+  color: var(--meadow-text);
+}
+
+.nav-cta-btn {
+  padding: 9px 22px;
+  font-size: 14px;
+}
+
+.footer-link-btn {
+  font-family: inherit;
+}
+
+/* ── restored: still used by /novation/mgas, /novation/advisors, /novation/register ── */
+.nav-logo-text {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--midnight);
+  letter-spacing: -0.02em;
 }
 
 .nav-cta {
@@ -190,7 +250,7 @@ body {
   margin: 4px 8px;
 }
 
-/* ── HERO ── */
+/* ── HERO (shared base — Novation subpages use this unchanged) ── */
 .hero {
   min-height: 100vh;
   display: flex;
@@ -211,6 +271,7 @@ body {
 }
 
 .hero-eyebrow {
+  font-family: var(--sans);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.12em;
@@ -232,26 +293,58 @@ body {
 
 .hero h1 {
   font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
   font-size: clamp(38px, 5vw, 60px);
   line-height: 1.08;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--navy);
   max-width: 760px;
   margin-bottom: 28px;
 }
 
-.hero h1 em {
-  font-style: normal;
-  color: var(--electric);
-}
-
 .hero-sub {
+  font-family: var(--sans);
   font-size: 18px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--gray-500);
   max-width: 520px;
   line-height: 1.7;
   margin-bottom: 48px;
+}
+
+/* ── Agora homepage hero override — applied only via the additional .agora-hero class ── */
+.agora-hero {
+  background: var(--midnight);
+}
+
+.agora-hero::before {
+  background: radial-gradient(circle, oklch(80% 0.28 145 / 0.10) 0%, transparent 70%);
+}
+
+.agora-hero .hero-eyebrow {
+  color: var(--meadow);
+}
+
+.agora-hero .hero-eyebrow::before {
+  background: var(--meadow);
+}
+
+.agora-hero h1 {
+  color: var(--chalk);
+}
+
+.agora-hero .hero-sub {
+  color: rgba(248, 247, 244, 0.7);
+  max-width: 560px;
+}
+
+.agora-hero .hero-scroll {
+  color: rgba(248, 247, 244, 0.4);
+}
+
+.agora-hero .scroll-line {
+  background: rgba(248, 247, 244, 0.4);
 }
 
 .hero-actions {
@@ -329,12 +422,73 @@ body {
   transform: translateX(4px);
 }
 
+.btn-agora-primary {
+  background: var(--meadow);
+  color: var(--midnight);
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--sans);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.2s;
+  display: inline-block;
+}
+
+.btn-agora-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-agora-outline {
+  background: none;
+  color: var(--chalk);
+  padding: 13px 30px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(248, 247, 244, 0.3);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  display: inline-block;
+}
+
+.btn-agora-outline:hover {
+  border-color: var(--meadow);
+  color: var(--meadow);
+}
+
+.btn-electric-outline {
+  background: none;
+  color: var(--electric);
+  padding: 12px 26px;
+  border-radius: 8px;
+  border: 1.5px solid var(--electric);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  display: inline-block;
+}
+
+.btn-electric-outline:hover {
+  background: var(--electric);
+  color: var(--white);
+}
+
 /* ── SHARED SECTION ── */
 section {
   padding: 100px 48px;
 }
 
 .section-label {
+  font-family: var(--sans);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.12em;
@@ -343,79 +497,12 @@ section {
   margin-bottom: 16px;
 }
 
-.section-title {
-  font-family: var(--serif);
-  font-size: clamp(26px, 3vw, 38px);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: var(--navy);
-  margin-bottom: 20px;
+.section-label--meadow {
+  color: var(--meadow-text);
+  font-weight: 700;
 }
 
-.section-body {
-  font-size: 16px;
-  font-weight: 300;
-  color: var(--gray-500);
-  max-width: 520px;
-  line-height: 1.75;
-}
-
-/* ── ABOUT ── */
-.about-section {
-  background: var(--gray-50);
-  border-top: 1px solid rgba(11, 31, 58, 0.06);
-  border-bottom: 1px solid rgba(11, 31, 58, 0.06);
-}
-
-.about-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-  align-items: start;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.pillars {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  padding-top: 8px;
-}
-
-.pillar {
-  border-left: 2px solid var(--electric);
-  padding-left: 20px;
-}
-
-.pillar-title {
-  font-family: var(--serif);
-  font-size: 17px;
-  color: var(--navy);
-  margin-bottom: 6px;
-}
-
-.pillar-body {
-  font-size: 14px;
-  font-weight: 300;
-  color: var(--gray-500);
-  line-height: 1.65;
-}
-
-/* ── NOVATION ── */
-.novation-outer {
-  padding: 100px 48px;
-}
-
-.novation-section {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.novation-header {
-  margin-bottom: 64px;
-}
-
+/* ── restored: still used by /novation/advisors ── */
 .product-badge {
   display: inline-flex;
   align-items: center;
@@ -439,9 +526,84 @@ section {
   background: #0D1B3E;
 }
 
-.novation-cards {
+.section-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+  margin-bottom: 20px;
+}
+
+.section-body {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--gray-500);
+  max-width: 560px;
+  line-height: 1.75;
+}
+
+.pull-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(20px, 2.4vw, 26px);
+  line-height: 1.4;
+  color: var(--navy);
+  max-width: 700px;
+  margin-bottom: 24px;
+}
+
+/* ── WHAT AGORA IS ── */
+.about-section {
+  background: var(--chalk);
+  border-top: 1px solid rgba(11, 31, 58, 0.06);
+  border-bottom: 1px solid rgba(11, 31, 58, 0.06);
+}
+
+.about-grid {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* ── HOW IT WORKS (placeholder) ── */
+.howitworks-outer {
+  padding: 100px 48px;
+}
+
+.howitworks-section {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.howitworks-header {
+  margin-bottom: 56px;
+  max-width: 640px;
+}
+
+.todo-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+  border: 1px dashed var(--gray-300);
+}
+
+.howitworks-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1px;
   background: rgba(11, 31, 58, 0.08);
   border: 1px solid rgba(11, 31, 58, 0.08);
@@ -451,24 +613,26 @@ section {
 
 .nov-card {
   background: var(--white);
-  padding: 36px 32px;
+  padding: 36px 28px;
   transition: background 0.2s;
 }
 
 .nov-card:hover {
-  background: var(--sky);
+  background: var(--chalk);
 }
 
 .nov-card-num {
-  font-family: var(--serif);
-  font-size: 40px;
-  color: rgba(37, 99, 235, 0.15);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--meadow-text);
   line-height: 1;
   margin-bottom: 16px;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
 }
 
 .nov-card-title {
+  font-family: var(--sans);
   font-size: 15px;
   font-weight: 500;
   color: var(--navy);
@@ -476,29 +640,63 @@ section {
 }
 
 .nov-card-body {
+  font-family: var(--sans);
   font-size: 13px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--gray-500);
   line-height: 1.65;
 }
 
-.novation-cta-row {
-  margin-top: 48px;
+/* ── BACKED BY KLARUM (secondary story) ── */
+.klarum-outer {
+  padding: 90px 48px;
+  background: var(--navy);
+  border-top: 1px solid rgba(11, 31, 58, 0.06);
+}
+
+.klarum-section {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.klarum-lockup {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 8px;
+  margin-bottom: 28px;
 }
 
-/* ── AGORA ── */
-.agora-outer {
-  padding: 100px 48px;
-  background: var(--chalk);
-  border-top: 1px solid rgba(11, 31, 58, 0.06);
-  border-bottom: 1px solid rgba(11, 31, 58, 0.06);
+.klarum-lockup-text {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--white);
+  letter-spacing: -0.01em;
 }
 
-.agora-cards {
-  grid-template-columns: repeat(2, 1fr) !important;
+.klarum-lockup-full-stop {
+  color: var(--electric);
+}
+
+.klarum-pull-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(19px, 2.2vw, 23px);
+  line-height: 1.45;
+  color: var(--white);
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+
+.klarum-body {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 560px;
+  line-height: 1.75;
+  margin-bottom: 32px;
 }
 
 /* ── TEAM ── */
@@ -601,7 +799,7 @@ section {
   color: rgba(255, 255, 255, 0.35);
 }
 
-/* ── CTA ── */
+/* ── CTA / CONTACT (shared base — Novation subpages use this unchanged) ── */
 .cta-section {
   text-align: center;
   padding: 120px 48px;
@@ -621,9 +819,11 @@ section {
 
 .cta-title {
   font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
   font-size: clamp(28px, 3.5vw, 44px);
   line-height: 1.12;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--navy);
   max-width: 680px;
   margin: 0 auto 20px;
@@ -635,11 +835,12 @@ section {
 }
 
 .cta-sub {
+  font-family: var(--sans);
   font-size: 16px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--gray-500);
-  margin: 0 auto 48px;
-  max-width: 400px;
+  margin: 0 auto 40px;
+  max-width: 420px;
 }
 
 .cta-form {
@@ -670,11 +871,96 @@ section {
   color: var(--gray-300);
 }
 
+/* ── Agora homepage contact form override — applied via the additional .agora-contact-form class ── */
+.agora-contact-form {
+  flex-direction: column;
+  max-width: 440px;
+  margin: 0 auto 16px;
+  text-align: left;
+  position: relative;
+}
+
+.agora-contact-form input,
+.agora-contact-form textarea {
+  width: 100%;
+  background: var(--white);
+}
+
+.agora-contact-form textarea {
+  padding: 14px 16px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: var(--sans);
+  outline: none;
+  transition: border-color 0.2s;
+  color: var(--navy);
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.5;
+}
+
+.agora-contact-form input:focus,
+.agora-contact-form textarea:focus {
+  border-color: var(--meadow);
+}
+
+.agora-contact-form textarea::placeholder {
+  color: var(--gray-300);
+}
+
+.cta-form-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: -6px;
+}
+
+.cta-form-optional {
+  font-weight: 400;
+  color: var(--gray-300);
+}
+
+.cta-quickfill {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-700);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  margin-top: -4px;
+}
+
+.cta-quickfill:hover {
+  border-color: var(--meadow-text);
+  color: var(--meadow-text);
+}
+
+.cta-form-submit {
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
 .cta-thanks {
   font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
   font-size: 22px;
   color: var(--electric);
   margin-bottom: 16px;
+}
+
+.agora-contact-thanks {
+  color: var(--meadow-text);
 }
 
 .cta-note {
@@ -692,11 +978,27 @@ footer {
 }
 
 .footer-logo {
-  font-family: var(--serif);
-  font-weight: 600;
-  font-size: 17px;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
   color: var(--midnight);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+.footer-logo .full-stop {
+  color: var(--electric);
+}
+
+.footer-tagline {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .footer-links {
@@ -2014,4 +2316,74 @@ footer {
   color: var(--gray-500);
   padding: 60px 0;
   text-align: center;
+}
+
+/* ── RESPONSIVE (homepage) ── */
+@media (max-width: 860px) {
+  .nav {
+    padding: 0 20px;
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .nav-links {
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .nav-cta-btn {
+    order: 3;
+  }
+
+  .hero,
+  .howitworks-outer,
+  .klarum-outer,
+  .cta-section,
+  section {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .hero-scroll {
+    left: 24px;
+  }
+
+  .about-grid {
+    max-width: 100%;
+  }
+
+  .howitworks-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 32px 24px;
+  }
+
+  .footer-links {
+    flex-wrap: wrap;
+    gap: 16px 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .howitworks-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-actions a {
+    text-align: center;
+  }
 }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M33 44 C33 20 67 20 67 44" fill="none" stroke="#0D1B3E" stroke-width="7"/>
+  <path d="M20 44 H80 L70 84 H30 Z" fill="none" stroke="#0D1B3E" stroke-width="7" stroke-linejoin="round"/>
+  <circle cx="70" cy="74" r="19" fill="oklch(80% 0.28 145)"/>
+  <text x="70" y="82" font-family="'DM Sans',sans-serif" font-weight="700" font-size="24" fill="#0D1B3E" text-anchor="middle">A</text>
+</svg>

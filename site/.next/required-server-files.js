@@ -306,7 +306,21 @@ self.__SERVER_FILES_MANIFEST={
     "turbopack": {
       "root": "/Users/kvk/novation"
     },
-    "distDirRoot": ".next"
+    "distDirRoot": ".next",
+    "_originalRewrites": {
+      "beforeFiles": [],
+      "afterFiles": [
+        {
+          "source": "/agora",
+          "destination": "https://agora-three-swart.vercel.app/agora"
+        },
+        {
+          "source": "/agora/:path*",
+          "destination": "https://agora-three-swart.vercel.app/agora/:path*"
+        }
+      ],
+      "fallback": []
+    }
   },
   "appDir": "/Users/kvk/novation/site",
   "relativeAppDir": "site",

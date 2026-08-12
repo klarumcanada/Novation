@@ -2,7 +2,9 @@
   "/_global-error/page": "app/_global-error/page.js",
   "/_not-found/page": "app/_not-found/page.js",
   "/api/contact/route": "app/api/contact/route.js",
+  "/icon.svg/route": "app/icon.svg/route.js",
   "/novation/advisors/page": "app/novation/advisors/page.js",
   "/novation/mgas/page": "app/novation/mgas/page.js",
+  "/novation/register/page": "app/novation/register/page.js",
   "/page": "app/page.js"
 }
