@@ -91,7 +91,7 @@ export default function Home() {
         <div className="hero-eyebrow">Agora · A Klarum Product</div>
         <h1>The marketplace for advisor transitions.</h1>
         <p className="hero-sub">
-          You're ready to retire, but you've built a business that deserves a thoughtful transition. You're an experienced advisor, but you're looking to grow your practice.Agora connects advisors ready to sell their book with qualified buyers ready to grow theirs.
+          Your business deserves a thoughtful transition.Agora connects advisors ready to sell their book with qualified buyers ready to grow theirs.
         </p>
         <div className="hero-actions">
           <button className="btn-agora-primary" onClick={() => scrollTo("contact")}>Learn about listing your business</button>
