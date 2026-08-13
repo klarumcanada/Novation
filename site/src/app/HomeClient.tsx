@@ -81,10 +81,9 @@ export default function Home() {
         </a>
         <ul className="nav-links">
           <li><button className="nav-link-btn" onClick={() => scrollTo("how-it-works")}>How it works</button></li>
-          <li><a href="/agora/marketplace">Browse listings</a></li>
           <li><button className="nav-link-btn" onClick={() => scrollTo("backed-by-klarum")}>About Klarum</button></li>
         </ul>
-        <a href="/agora/register" className="btn-agora-primary nav-cta-btn">List your business →</a>
+        <button className="btn-agora-primary nav-cta-btn" onClick={() => scrollTo("contact")}>Learn about listing your business</button>
       </nav>
 
       {/* HERO — Agora is the headline, Klarum is the credential */}
@@ -95,8 +94,7 @@ export default function Home() {
           Agora connects advisors ready to sell their book with qualified buyers ready to grow theirs — with the diligence tools to make both sides confident in the deal.
         </p>
         <div className="hero-actions">
-          <a href="/agora/register" className="btn-agora-primary">List your business →</a>
-          <a href="/agora/marketplace" className="btn-agora-outline">Browse listings</a>
+          <button className="btn-agora-primary" onClick={() => scrollTo("contact")}>Learn about listing your business</button>
         </div>
         <div className="hero-scroll">
           <span className="scroll-line" />
@@ -257,7 +255,6 @@ export default function Home() {
         </div>
         <ul className="footer-links">
           <li><button className="nav-link-btn footer-link-btn" onClick={() => scrollTo("how-it-works")}>How it works</button></li>
-          <li><a href="/agora/marketplace">Browse listings</a></li>
           {/* Quiet footer-only mention per guardrail ("footer/product-family mention at most") — /novation/mgas, /novation/advisors, and /novation/register are real, still-functional pages that had nav links before this redesign; confirm with Kelsi (open question #4) whether even this should stay while paused */}
           <li><a href="/novation/mgas">Novation</a></li>
           <li><button className="nav-link-btn footer-link-btn" onClick={() => scrollTo("backed-by-klarum")}>About Klarum</button></li>
