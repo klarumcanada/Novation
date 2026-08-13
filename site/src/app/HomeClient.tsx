@@ -91,7 +91,7 @@ export default function Home() {
         <div className="hero-eyebrow">Agora · A Klarum Product</div>
         <h1>The marketplace for advisor transitions.</h1>
         <p className="hero-sub">
-          Agora connects advisors ready to sell their book with qualified buyers ready to grow theirs — with the diligence tools to make both sides confident in the deal.
+          You're ready to retire, but you've built a business that deserves a thoughtful transition. You're an experienced advisor, but you're looking to grow your practice.Agora connects advisors ready to sell their book with qualified buyers ready to grow theirs.
         </p>
         <div className="hero-actions">
           <button className="btn-agora-primary" onClick={() => scrollTo("contact")}>Learn about listing your business</button>
@@ -108,46 +108,42 @@ export default function Home() {
           <div ref={addRef} className="fade-in">
             <div className="section-label section-label--meadow">What Agora Is</div>
             <p className="pull-quote">
-              &ldquo;The marketplace where advisors buy and sell business — built by the technical partner they already trust.&rdquo;
+              &ldquo;The marketplace where advisors buy and sell business — built by the technical partner they can trust.&rdquo;
             </p>
             <p className="section-body">
-              Agora doesn&apos;t just list books of business — it connects the right buyer to the right seller, with the tools to move a deal from interest to close. It&apos;s a Klarum product: same discipline, same quiet confidence, applied to the moment an advisor&apos;s career changes hands.
-            </p>
-          </div>
+              Calculation tools. Listings, not classifieds. Qualified participants on both sides. You control what's shared. 
+            </p>          </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS — placeholder, needs real product detail from Kelsi */}
+      
       <section className="howitworks-outer" id="how-it-works">
         <div className="howitworks-section">
           <div ref={addRef} className="howitworks-header fade-in">
-            <div className="todo-flag">TODO — confirm with Kelsi</div>
-            <div className="section-label section-label--meadow">How It Works</div>
+                        <div className="section-label section-label--meadow">How It Works</div>
             <h2 className="section-title">From listing to close.</h2>
-            <p className="section-body">
-              Placeholder structure below — replace with the real steps of listing, matching, and closing a deal on Agora, plus any diligence tools it provides.
-            </p>
+            
           </div>
           <div ref={addRef} className="howitworks-cards fade-in">
             <div className="nov-card">
               <div className="nov-card-num">Step 01</div>
-              <div className="nov-card-title">TODO</div>
-              <p className="nov-card-body">Awaiting real copy from Kelsi.</p>
+              <div className="nov-card-title">Create your Listing</div>
+              <p className="nov-card-body">Sellers publish a structured profile - product mix, region, revenue shape - and buyers publish their criteria - budget, region, ideal client mix. </p>
             </div>
             <div className="nov-card">
               <div className="nov-card-num">Step 02</div>
-              <div className="nov-card-title">TODO</div>
-              <p className="nov-card-body">Awaiting real copy from Kelsi.</p>
+              <div className="nov-card-title">Match and Enquire</div>
+              <p className="nov-card-body">Buyers filter to what fits their practice or sellers can find that align with their client needs.</p>
             </div>
             <div className="nov-card">
               <div className="nov-card-num">Step 03</div>
-              <div className="nov-card-title">TODO</div>
-              <p className="nov-card-body">Awaiting real copy from Kelsi.</p>
+              <div className="nov-card-title">Qualify</div>
+              <p className="nov-card-body">Seller can review the buyer's profile and criteria to determine if they are a good fit.</p>
             </div>
             <div className="nov-card">
               <div className="nov-card-num">Step 04</div>
-              <div className="nov-card-title">TODO</div>
-              <p className="nov-card-body">Awaiting real copy from Kelsi.</p>
+              <div className="nov-card-title">Connect directly</div>
+              <p className="nov-card-body">Once both sides agree, they can communicate directly on the platform and take the deal forward on their own terms.</p>
             </div>
           </div>
         </div>
