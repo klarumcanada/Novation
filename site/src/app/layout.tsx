@@ -20,7 +20,7 @@ const dmSans = DM_Sans({
 
 const title = "Agora — The marketplace for advisor transitions | Klarum";
 const description =
-  "Agora is the marketplace where advisors buy and sell business — built on the technical foundation of Klarum, the technical partner for Canadian MGAs and advisors.";
+  "Agora is the marketplace where advisors buy and sell books of business — built by Klarum, the technical partner Canadian MGAs and advisors already trust.";
 
 export const metadata: Metadata = {
   title,
@@ -28,7 +28,12 @@ export const metadata: Metadata = {
   openGraph: {
     title,
     description,
-    url: "https://klarum.ca",
+    url: "https://klarum.ca/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
   },
 };
 
